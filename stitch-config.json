@@ -1,0 +1,38 @@
+{
+  "mcpServers": [
+    {
+      "name": "GitHub",
+      "type": "GitRepository",
+      "config": {
+        "baseUrl": "https://github.com",
+        "repository": "your-org/your-ui-components-repo",
+        "accessTokenEnvVar": "GITHUB_ACCESS_TOKEN"
+      },
+      "description": "Servidor para consultar patrones de diseño en repositorios de componentes UI modernos."
+    },
+    {
+      "name": "LocalFileSystem",
+      "type": "FileSystem",
+      "config": {
+        "basePath": "."
+      },
+      "description": "Servidor para leer y escribir la estructura de temas de Tailwind y componentes de React."
+    },
+    {
+      "name": "EChartsDocumentation",
+      "type": "WebDocumentation",
+      "config": {
+        "baseUrl": "https://echarts.apache.org/en/index.html"
+      },
+      "description": "Documentación oficial de Apache ECharts para mejores prácticas."
+    },
+    {
+      "name": "LucideDocumentation",
+      "type": "WebDocumentation",
+      "config": {
+        "baseUrl": "https://lucide.dev/icons/"
+      },
+      "description": "Documentación oficial de Lucide para iconos."
+    }
+  ]
+}

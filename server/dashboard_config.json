@@ -1,0 +1,53 @@
+{
+  "title": "Test 01",
+  "charts": [
+    {
+      "id": "1kuz7y11u",
+      "title": "Nueva Métrica",
+      "type": "bar",
+      "dataSource": {
+        "table": "imp_36ada4_categorias",
+        "xAxis": "nombre",
+        "yAxis": "id",
+        "aggregation": "COUNT"
+      },
+      "filters": []
+    },
+    {
+      "id": "h82fyhvbh",
+      "title": "Nueva Métrica",
+      "type": "pie",
+      "dataSource": {
+        "table": "imp_36ada4_productos",
+        "xAxis": "precio",
+        "yAxis": "nombre",
+        "aggregation": "COUNT"
+      },
+      "filters": []
+    },
+    {
+      "id": "n5ny9sxei",
+      "title": "Nueva Métrica",
+      "type": "bar",
+      "dataSource": {
+        "table": "imp_36ada4_ventas",
+        "xAxis": "cantidad",
+        "yAxis": "monto",
+        "aggregation": "SUM"
+      },
+      "filters": []
+    },
+    {
+      "id": "qxobiicsk",
+      "title": "Nueva Métrica",
+      "type": "bar",
+      "dataSource": {
+        "table": "imp_36ada4_ventas",
+        "xAxis": "fecha",
+        "yAxis": "producto_id",
+        "aggregation": "SUM"
+      },
+      "filters": []
+    }
+  ]
+}

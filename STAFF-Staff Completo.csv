@@ -1,0 +1,107 @@
+﻿Nombre y Apellido,Contrato,ROL,Nombre/s,Apellido/s,Activo,Comentario,Proyectos Asignados,Proyectos,Modalidad,Experiencia,Proyectos (q),Origen,E-mail,Desempeño Ley/dto,HHEE,UR,Coordinación,Presencialidad,SKILLS,Cumpleaños,EDAD
+,,,,,checked,,,,,,1,,,,,,,,,,FALTA COMPLETAR CUMPLEAÑOS
+,,,,,checked,,,,,,1,,,,,,,,,,FALTA COMPLETAR CUMPLEAÑOS
+Agustina Otero,PNUD,DEV,Agustina,Otero,checked,,"Cuota Simple, Integraciones
+","Cuota Simple,""Integraciones
+""",FULL,SemiSr,2,Producción,aotero@produccion.gob.ar,A,NO,NO,Programación de Sistemas,Exceptuado,,17/10/1995,"30 years, 5 months"
+Andres Concheso,Ley Marco,DATOS,Andres,Concheso,checked,,"ARCON
+, DATOS - Tableros POWER BI, SEPA, SIPRE","""ARCON
+"",DATOS - Tableros POWER BI,SEPA,SIPRE",FULL,Sr,4,Producción,aconcheso@produccion.gob.ar,A,NO,SI,Programación de Sistemas,SI,,29/12/1960,"65 years, 3 months"
+Andres Ruffolo,Ley Marco,DEV,Andrés,Ruffolo,checked,,"Bandas Horarias, Jimenez, RH Bot","Bandas Horarias,Jimenez,RH Bot",FULL,Sr,3,Producción,aruffolo@produccion.gob.ar,A,NO,SI,Analisis y Diseño de Sistemas,SI,,2/2/1972,"54 years, 1 months"
+Branco Castia,CTO 1109,QA,Branco,Castia,checked,,QA - ZABBIX,QA - ZABBIX,FULL,Sr,1,Producción,bcastia@produccion.gob.ar,A,NO,NO,Programación de Sistemas,SI,,13/10/2000,"25 years, 5 months"
+Carolina Frutos,CTO 1109,DISEÑO,Carolina,Frutos,checked,,"Campus Virtual, Codesarrollo, DNA2 - Credito Fiscal, DNA2 - Emprendimientos Dinámicos, DNA2 - Expertos Pyme, DNA2 - FONDEP, DNA2 - PAC Emprendedores, DNA2 - PAC Empresas, RBAC","Campus Virtual,Codesarrollo,DNA2 - Credito Fiscal,DNA2 - Emprendimientos Dinámicos,DNA2 - Expertos Pyme,DNA2 - FONDEP,DNA2 - PAC Emprendedores,DNA2 - PAC Empresas,RBAC",FULL,Sr,9,Producción,cfrutos@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,SI,,19/4/1994,"31 years, 11 months"
+Clara Lascano,Ley Marco,Documentacion y Procesos,Clara,Lascano,checked,,,,FULL,Sr,1,Producción,mlascano@produccion.gob.ar,A,NO,SI,Programación de Sistemas,SI,,4/8/1984,"41 years, 7 months"
+Cristina De La Savia,Ley Marco,DEV,Cristina,De La Savia,checked,,COPREC,COPREC,FULL,Sr,1,Producción,csavia@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,SI,,17/8/1960,"65 years, 7 months"
+Daniel Arcondo,Designación,Director,Daniel,Arcondo,checked,,,,FULL,,1,,darcondo@produccion.gob.ar,,,,,,,1/1/1971,"55 years, 2 months"
+Denise Friedenbach,Ley Marco,DISEÑO,Denise,Friedenbach,checked,,EMCe - Envio Masivo de Correos,EMCe - Envio Masivo de Correos,FULL,Sr,1,Producción,dfried@produccion.gob.ar,A,NO,NO,Programación de Sistemas,SI,,23/6/1982,"43 years, 9 months"
+Diego Colombres,Designación,COORDINADOR,Diego,Colombres,checked,,,,FULL,Sr,1,Producción,dcolom@produccion.gob.ar,A,NO,SI,Programación de Sistemas,SI,,23/12/1977,"48 years, 3 months"
+Diego Insua,CTO 1109,DEV,Diego,Insua,checked,,"CTIT - CTZF, Egreso de Bienes, Patrimonio, RRHH Horas Extras, Saldo Técnico IVA, Sist. Internos Telefónicos, BK3, BK SUR, RISE, Evaluación de Ofertas, Suministros
+","CTIT - CTZF,Egreso de Bienes,Patrimonio,RRHH Horas Extras,Saldo Técnico IVA,Sist. Internos Telefónicos,BK3,BK SUR,RISE,Evaluación de Ofertas,""Suministros
+""",FULL,Sr,11,Producción,dinsua@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,Exceptuado,,13/2/1977,"49 years, 1 months"
+Diego Otero,Ley Marco,DEV,Diego,Otero,checked,,"QA - ZABBIX, Cuota Simple, CTIT, Registro Pyme, LUFE, Jimenez, Mectra, Integraciones
+","QA - ZABBIX,Cuota Simple,CTIT,Registro Pyme,LUFE,Jimenez,Mectra,""Integraciones
+""",FULL,Sr,8,Producción,daotero@produccion.gob.ar,A,NO,SI,Programación de Sistemas,Exceptuado,,19/4/1973,"52 years, 11 months"
+Enrique Farre,CTO 1109,PM/analista,Enrique,Farré,checked,,"LUFE, Registro Pyme, SIUCAR, SGRRHH","LUFE,Registro Pyme,SIUCAR,SGRRHH",FULL,Sr,4,DIPROSE,efarre@produccion.gob.ar,A,,,Programación de Sistemas,SI,,4/7/1961,"64 years, 8 months"
+Esteban Garbers,CTO 1109,DEV,Esteban,Garbers,checked,,,,FULL,Sr,1,Forestal, egarbers@magyp.gob.ar,,,,,,,22/7/1992,"33 years, 8 months"
+Gisela Casco,Designación,COORDINADORA,Gisela,Casco,checked,,,,FULL,Sr,1,Producción,gcasco@produccion.gob.ar,A,NO,SI,Analisis y Diseño de Sistemas,SI,,13/11/1983,"42 years, 4 months"
+Guillermo Barret,CTO 1109,DEV,Guillermo,Barret,checked,,"Jimenez, Bandas Horarias","Jimenez,Bandas Horarias",FULL,Sr,2,Producción,gbarrett@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,Exceptuado,,11/2/1988,"38 years, 1 months"
+Guillermo Guardiola,Ley Marco,DEV,Guillermo,Guardiola,checked,,"CITC
+, SiiP
+, Sifipa","""CITC
+"",""SiiP
+"",Sifipa",FULL,,3,Pesca,gguardiola@produccion.gob.ar,,,,,,,7/11/1977,"48 years, 4 months"
+Guillermo Ochoa,Ley Marco,DEV,Guillermo,Ochoa,checked,,"Campus Virtual, Codesarrollo, DNA2 - Credito Fiscal, DNA2 - Emprendimientos Dinámicos, DNA2 - Expertos Pyme, DNA2 - FONDEP, DNA2 - PAC Emprendedores, DNA2 - PAC Empresas, RBAC","Campus Virtual,Codesarrollo,DNA2 - Credito Fiscal,DNA2 - Emprendimientos Dinámicos,DNA2 - Expertos Pyme,DNA2 - FONDEP,DNA2 - PAC Emprendedores,DNA2 - PAC Empresas,RBAC",FULL,Sr,9,Producción,gochoa@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,SI,,14/3/1975,"51 years, 0 months"
+Gustavo Carrena,Ley Marco,PM,Gustavo,Carrena,checked,,"Campus Virtual, SIACE, SIPRE, SEPA, Intranet, Intranet - mobile","Campus Virtual,SIACE,SIPRE,SEPA,Intranet,Intranet - mobile",FULL,,6,MAGYP,gcarrena@produccion.gob.ar,A,,,Coord Agri,SI,,6/2/1976,"50 years, 1 months"
+"Gustavo Coronel Boselli
+",Ley Marco,DATOS,Gustavo,Coronel Boselli,checked,,,,FULL,Sr,1,DIPROSE,gcoronel@produccion.gob.ar,,,,,SI,,14/3/1972,"54 years, 0 months"
+Gustavo Recalde,CTO 1109,DEV,Gustavo,Recalde,checked,,"Mectra, Traza, ARCON
+","Mectra,Traza,""ARCON
+""",FULL,Sr,3,Producción,grecalde@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,Exceptuado,,11/2/1980,"46 years, 1 months"
+Hernan Cumbraos,CTO 1109,DEV,Hernan,Cumbraos,checked,,"LUFE, SIUCAR, SGRRHH, Registro Pyme","LUFE,SIUCAR,SGRRHH,Registro Pyme",FULL,Sr,4,DIPROSE,hcumbraos@produccion.gob.ar,A,,,Programación de Sistemas,SI,,8/8/1992,"33 years, 7 months"
+Joaquín Ventre,Designación,COORDINADOR,Joaquin,Ventre,checked,,"ODOO Flota, Autos Oficiales, Sima, RENACUA, Intranet, Intranet - mobile, SINIE
+, Sello Bioproductos, Proyectos, Comedor, Linkgde, Sellos, Precios Porcinos (win32), Presentaciones, Aportes Forestales, Digitalización De Expedientes, Renapa, Warrants, Stock Ganadero, SistemaDjec, Renavi, Sif","ODOO Flota,Autos Oficiales,Sima,RENACUA,Intranet,Intranet - mobile,""SINIE
+"",Sello Bioproductos,Proyectos,Comedor,Linkgde,Sellos,Precios Porcinos (win32),Presentaciones,Aportes Forestales,Digitalización De Expedientes,Renapa,Warrants,Stock Ganadero,SistemaDjec,Renavi,Sif",FULL,,22,MAGYP,jventre@produccion.gob.ar,A,,,Coord Agri,SI,,19/3/1987,"39 years, 0 months"
+José Santorsola,Ley Marco,DEV,José,Santarsola,checked,,"Sima, RENACUA, Precios Porcinos (win32), Presentaciones, Movimiento de Granos 37.13 (win32), Renavi, ARCON
+","Sima,RENACUA,Precios Porcinos (win32),Presentaciones,Movimiento de Granos 37.13 (win32),Renavi,""ARCON
+""",FULL,,7,MAGYP,jsantorsola@produccion.gob.ar,A,,,Coord Agri,SI,,24/12/1971,"54 years, 3 months"
+Juan Ignacio Floridia,Ley Marco,DEV,Juan Ignacio,Floridia,checked,,"LUFE, Fisca Facil, Siglea, Portal Renaf, WSRenaper, Portaldecarga, Datos Estimaciones","LUFE,Fisca Facil,Siglea,Portal Renaf,WSRenaper,Portaldecarga,Datos Estimaciones",FULL,,7,MAGYP,jfloridia@produccion.gob.ar,A,,,Coord Agri,SI,,15/6/1987,"38 years, 9 months"
+Juan Maqui,CTO 1109,Documentacion y Procesos,Juan,Maqui,checked,,"Pesca NAcion, Sisgral
+","Pesca NAcion,""Sisgral
+""",FULL,,2,Pesca,jcmaqui@produccion.gob.ar,,,,,,,18/2/1983,"43 years, 1 months"
+Juan Pablo Alarcón,PNUD,DEV,Juan Pablo,Alarcón,checked,,"Registro Pyme, ARCON
+","Registro Pyme,""ARCON
+""",FULL,Sr,2,Producción,jpalarcon@produccion.gob.ar,A,NO,NO,Programación de Sistemas,Exceptuado,,30/9/1989,"36 years, 6 months"
+Karen Guardia,Ley Marco,UX/UI,Karen,Guardia,checked,,EMCe - Envio Masivo de Correos,EMCe - Envio Masivo de Correos,FULL,Sr,1,Producción,kguardia@produccion.gob.ar,A,SI,NO,Programación de Sistemas,SI,,16/8/1996,"29 years, 7 months"
+Lucas M Duran,Ley Marco,"DEV,QA",Lucas M,Duran,checked,,"RADAR, QA - ZABBIX","RADAR,QA - ZABBIX",FULL,,2,PRENSA AGRI,lduran@produccion.gob.ar,,,,,,,5/10/1990,"35 years, 5 months"
+Marcelo Lucini,CTO 1109,DEV,Marcelo,Lucini,checked,,"DNA2 - Credito Fiscal, DNA2 - Emprendimientos Dinámicos, DNA2 - Expertos Pyme, DNA2 - FONDEP, DNA2 - PAC Emprendedores, DNA2 - PAC Empresas, RADAR, RENAI
+, CAP (centro ayuda Pyme) ","DNA2 - Credito Fiscal,DNA2 - Emprendimientos Dinámicos,DNA2 - Expertos Pyme,DNA2 - FONDEP,DNA2 - PAC Emprendedores,DNA2 - PAC Empresas,RADAR,""RENAI
+"",CAP (centro ayuda Pyme) ",FULL,Sr,9,Producción,mjlucini@produccion.gob.ar,A,NO,NO,Programación de Sistemas,SI,,8/12/1963,"62 years, 3 months"
+Mariano Medina,Ley Marco,DEV,Mariano,Medina,checked,,"BK 4.0, Exporta Simple, Bono Fomento, Registro Pyme, Textiles , LUFE, DNA2 - Credito Fiscal, DNA2 - Emprendimientos Dinámicos, DNA2 - Expertos Pyme, DNA2 - FONDEP, DNA2 - PAC Emprendedores, DNA2 - PAC Empresas, BK3, RADAR, Chatbot, RICE
+, CAP (centro ayuda Pyme) ","BK 4.0,Exporta Simple,Bono Fomento,Registro Pyme,Textiles ,LUFE,DNA2 - Credito Fiscal,DNA2 - Emprendimientos Dinámicos,DNA2 - Expertos Pyme,DNA2 - FONDEP,DNA2 - PAC Emprendedores,DNA2 - PAC Empresas,BK3,RADAR,Chatbot,""RICE
+"",CAP (centro ayuda Pyme) ",FULL,Sr,17,Producción,mmedina@produccion.gob.ar,A,NO,SI,Programación de Sistemas,SI,,9/2/1974,"52 years, 1 months"
+Martín Dell'Oro,CTO 1109,UX/UI,Martín,Dell´Oro,checked,,Forestar,Forestar,FULL,Sr,1,Forestal,mdelloro@magyp.gob.ar,,,,,,,29/11/1989,"36 years, 4 months"
+"Martin Feijoo
+",Ley Marco,QA,Martín ,Feijoo,checked,,QA - ZABBIX,QA - ZABBIX,FULL,,1,PRENSA AGRI,mfeijoo@produccion.gob.ar,,,,,,,13/1/1965,"61 years, 2 months"
+Martin Muñoz,CTO 1109,DEV,Martín ,Muñoz,checked,,"Pesca NAcion, Sisgral
+","Pesca NAcion,""Sisgral
+""",FULL,,2,Pesca,mamunoz@produccion.gob.ar,,,,,,,22/4/1988,"37 years, 11 months"
+Mauro Matteo,PNUD,DEV,Mauro,Matteo,checked,,"Codesarrollo, Traza","Codesarrollo,Traza",FULL,Sr,2,Producción,matteo@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,Exceptuado,,25/11/1991,"34 years, 4 months"
+Maximiliano Villanueva,PNUD,DEV,Maximiliano,Villanueva,checked,,"Ley de Economia del Conocimiento, CTIT","Ley de Economia del Conocimiento,CTIT",Part,SemiSr,2,Producción,mvillanueva@produccion.gob.ar,A,NO,NO,Programación de Sistemas,Exceptuado,,10/9/1987,"38 years, 6 months"
+Misael Vita,Ley Marco,LIDER TECNICO,Misael,Vita,checked,,"CITC
+, Pesca NAcion, Sisgral
+, SiiP
+, Sifipa","""CITC
+"",Pesca NAcion,""Sisgral
+"",""SiiP
+"",Sifipa",FULL,,5,Pesca,mvita@produccion.gob.ar,,,,,,,21/11/1981,"44 years, 4 months"
+Moira Morel Penco,CTO 1109,PM,Moira,Morel Penco,checked,,"Biblioteca Tettamanti, CTIT, CTIT - CTZF, Egreso de Bienes, Evaluación de Ofertas, Patrimonio, RRHH Horas Extras, S. Integral de RRHH, Saldo Técnico IVA, SIEC, Sist. Internos Telefónicos, EMCe - Envio Masivo de Correos, BK 4.0, Jimenez, BK3, BK SUR, RISE, Suministros
+","Biblioteca Tettamanti,CTIT,CTIT - CTZF,Egreso de Bienes,Evaluación de Ofertas,Patrimonio,RRHH Horas Extras,S. Integral de RRHH,Saldo Técnico IVA,SIEC,Sist. Internos Telefónicos,EMCe - Envio Masivo de Correos,BK 4.0,Jimenez,BK3,BK SUR,RISE,""Suministros
+""",FULL,Sr,18,Producción,mmorel@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,SI,,8/2/1978,"48 years, 1 months"
+Nahuel Che Kenny,Ley Marco,DEV,Nahuel,Che Kenny,checked,,"Fisca Facil, SIACE, Intranet, Intranet - mobile","Fisca Facil,SIACE,Intranet,Intranet - mobile",FULL,,4,MAGYP,echekenny@produccion.gob.ar,A,,,Coord Agri,SI,,4/5/1985,"40 years, 10 months"
+Natalia Herrera,Ley Marco,"DISEÑO,QA",Natalia,Herrera,checked,,,,FULL,,1,PRENSA AGRI,nherrera@produccion.gob.ar,,,,,,,30/4/1973,"52 years, 11 months"
+Natalia Holzer,Ley Marco,DISEÑO,Natalia,Holzer,checked,,"Siglea, Portal Renaf, Sima, RENACUA, Intranet, Intranet - mobile, SINIE
+, Sello Bioproductos, Proyectos, Comedor, Sellos, Precios Porcinos (win32), Presentaciones, Aportes Forestales, Renapa, Warrants, Stock Ganadero, Renavi, Sif","Siglea,Portal Renaf,Sima,RENACUA,Intranet,Intranet - mobile,""SINIE
+"",Sello Bioproductos,Proyectos,Comedor,Sellos,Precios Porcinos (win32),Presentaciones,Aportes Forestales,Renapa,Warrants,Stock Ganadero,Renavi,Sif",FULL,,19,MAGYP,nholzer@produccion.gob.ar,A,,,Coord Agri,SI,,2/4/1981,"44 years, 11 months"
+Pablo Ovejero,Ley Marco,DEV,Pablo,Ovejero,checked,,"SIACE, Wsafip, E-Ventanilla back, Cofra, Fisca Facil, Autos Oficiales, SIAF local
+","SIACE,Wsafip,E-Ventanilla back,Cofra,Fisca Facil,Autos Oficiales,""SIAF local
+""",FULL,,7,MAGYP,pgonzalez@produccion.gob.ar,A,,,Coord Agri,SI,,3/5/1984,"41 years, 10 months"
+Pedro Tofful,Ley Marco,DEV,Pedro,Tofful,checked,,"LUFE, Fisca Facil, Ruca, Siglea, Portal Renaf, Wsafip, WSRenaper, Autogestión, Cofra, SistemaDjec, Portaldecarga, Datos Estimaciones","LUFE,Fisca Facil,Ruca,Siglea,Portal Renaf,Wsafip,WSRenaper,Autogestión,Cofra,SistemaDjec,Portaldecarga,Datos Estimaciones",FULL,,12,MAGYP,ptofful@produccion.gob.ar,A,,,Coord Agri,SI,,15/12/1983,"42 years, 3 months"
+Rubén Lluis,Ley Marco,Analista,Ruben,Lluis,checked,,"EMCe - Envio Masivo de Correos, QA - ZABBIX","EMCe - Envio Masivo de Correos,QA - ZABBIX",FULL,Sr,2,Producción,rlluis@produccion.gob.ar,,,,,SI,,23/9/1958,"67 years, 6 months"
+Sebastian Canosa,CTO 1109,PM,Sebastián,Canosa,checked,,"Autopartes SGA, CRM, Codesarrollo, Ley de Economia del Conocimiento, Mectra, RBAC, Traza, ARCON
+","Autopartes SGA,CRM,Codesarrollo,Ley de Economia del Conocimiento,Mectra,RBAC,Traza,""ARCON
+""",FULL,Sr,8,Producción,scanos@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,SI,,23/9/1976,"49 years, 6 months"
+Sebastian Garbi,Ley Marco,DEV,Sebastián,Garbi,checked,,"BK 4.0, Ruca, Intranet, Intranet - mobile, Autogestión, SistemaDjec","BK 4.0,Ruca,Intranet,Intranet - mobile,Autogestión,SistemaDjec",FULL,,6,MAGYP,sgarbi@produccion.gob.ar,A,,,Coord Agri,SI,,15/1/1984,"42 years, 2 months"
+Sebastian Zylberberg,CTO 1109,DEV,Sebastián,Zylberberg,checked,,"BK 4.0, EITI, RBAC, Autos Oficiales","BK 4.0,EITI,RBAC,Autos Oficiales",Part,Sr,4,Producción,szylber@produccion.gob.ar,A,NO,NO,Analisis y Diseño de Sistemas,Exceptuado,,28/2/1985,"41 years, 1 months"
+Susana Zavaletta,CTO 1109,DATOS,Susana,Zavaletta,checked,,"Cuota Simple, DATOS - Tableros POWER BI, SEPA","Cuota Simple,DATOS - Tableros POWER BI,SEPA",FULL,Sr,3,Producción,szavaletta@produccion.gob.ar,A,NO,NO,Programación de Sistemas,SI,,5/1/1965,"61 years, 2 months"
+Viviana Tosoroni,CTO 1109,PM/analista,Viviana,Tosorino,checked,,"CITC
+, Pesca NAcion, Sisgral
+, SiiP
+, Sifipa","""CITC
+"",Pesca NAcion,""Sisgral
+"",""SiiP
+"",Sifipa",FULL,,5,Pesca,vtosoroni@produccion.gob.ar,,,,,,,12/7/1975,"50 years, 8 months"
+Wilfredo Zarate,Ley Marco,DEV,Wilfredo,Zarate,checked,,"CITC
+, SiiP
+, Sifipa","""CITC
+"",""SiiP
+"",Sifipa",FULL,,3,Pesca,wszarate@produccion.gob.ar,,,,,,,28/2/1969,"57 years, 1 months"
