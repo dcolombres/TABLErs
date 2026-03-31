@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2021",
-    "module": "commonjs",
+    "module": "NodeNext", // Use NodeNext for ES Module output compatible with Node.js
     "rootDir": ".",
     "outDir": "./dist/server",
     "esModuleInterop": true,
@@ -9,6 +9,7 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "moduleResolution": "NodeNext", // Use NodeNext for module resolution
     "baseUrl": ".",
     "paths": {
       "shared/*": ["./shared/*"]
