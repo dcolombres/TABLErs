@@ -8,21 +8,22 @@ import {
   saveDashboardConfig,
   getData,
 } from '../controllers/data.controller';
+import { queryGuardMiddleware } from '../middleware/queryGuard.middleware';
 import { syncGoogleSheet } from '../controllers/googleDrive.controller'; // Import the new controller
 
 const router = Router();
 
 // ── Data Source Management ───────────────────────────────────
 router.get('/tables', getTables);
-router.delete('/table/:table', deleteTable);
-router.get('/schema/:table', getSchema);
+router.delete('/table/:table', queryGuardMiddleware, deleteTable); // Apply middleware
+router.get('/schema/:table', queryGuardMiddleware, getSchema); // Apply middleware
 
 // ── Google Drive Integration ─────────────────────────────────
 router.post('/gdrive-sync', syncGoogleSheet); // New route for Google Drive sync
 
 // ── Query (for ChartRenderer) ────────────────────────────────
-router.post('/query', queryData);
-router.post('/data', getData); // Legacy route
+router.post('/query', queryGuardMiddleware, queryData); // Apply middleware
+router.post('/data', queryGuardMiddleware, getData); // Apply middleware to legacy route
 
 // ── Dashboard Configuration ──────────────────────────────────
 router.get('/dashboard/default', getDashboardConfig);
