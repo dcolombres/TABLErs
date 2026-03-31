@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Save, BarChart2, TrendingUp, PieChart,
@@ -30,12 +31,12 @@ const ChartConfigurator: React.FC<Props> = ({ config, onSave, onClose, onDelete 
   const [columns, setColumns] = useState<string[]>([]);
 
   useEffect(() => {
-    axios.get('/api/tables').then(r => setTables(r.data)).catch(console.error);
+    axios.get('/tables').then(r => setTables(r.data)).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (!editedConfig.dataSource.table) return;
-    axios.get(`/api/schema/${editedConfig.dataSource.table}`)
+    axios.get(`/schema/${editedConfig.dataSource.table}`)
       .then(r => setColumns(Object.keys(r.data)))
       .catch(console.error);
   }, [editedConfig.dataSource.table]);

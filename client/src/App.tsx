@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, Plus, RefreshCw,
@@ -31,21 +32,30 @@ function App() {
   const [isSaving, setIsSaving]         = useState(false);
 
   useEffect(() => {
-    const check = async () => {
-      try {
-        const r = await axios.get('/api/tables');
-        if (r.data?.length > 0) setIsConnected(true);
-      } catch { /* not connected */ }
+    const fetchInitialData = async () => {
+      const r = await axios.get('/tables');
+      setTables(r.data);
+
+      const r2 = await axios.get('/dashboard/default');
+      if (r2.data) {
+        setDashboardConfig(r2.data);
+      } 
     };
-    const load = async () => {
-      try {
-        const r = await axios.get('/api/dashboard/default');
-        if (r.data) setDashboard(r.data);
-      } catch { /* fresh */ }
-    };
-    check();
-    load();
+    fetchInitialData();
   }, []);
+
+  const handleSaveDashboard = async () => {
+    try {
+      setSaving(true);
+      await axios.post('/dashboard/save', dashboardConfig);
+      alert('Dashboard saved successfully!');
+    } catch (error) {
+      console.error('Error saving dashboard:', error);
+      alert('Failed to save dashboard.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleAddChart = () => {
     if (dashboard.charts.length >= 6) return;

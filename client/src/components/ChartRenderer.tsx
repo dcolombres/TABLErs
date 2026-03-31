@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import axios from 'axios';
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChartConfig } from '../types';
 import { Loader2, AlertCircle, Maximize2, Info, BarChart3, Settings } from 'lucide-react';
@@ -48,7 +49,7 @@ const ChartRenderer: React.FC<Props> = ({ config, refreshKey, accentIndex = 0 })
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.post('/api/query', {
+        const response = await axios.post('/query', {
           table: config.dataSource.table,
           columns: [config.dataSource.xAxis],
           aggregations: [{ column: config.dataSource.yAxis, func: config.dataSource.aggregation, alias: 'value' }],
