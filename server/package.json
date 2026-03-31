@@ -1,6 +1,7 @@
 {
   "name": "tablers-backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "Backend for Tablers analytics dashboard",
   "main": "dist/index.js",
   "scripts": {
