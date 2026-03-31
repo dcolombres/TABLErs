@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import db from '../services/db.service';
 import fs from 'fs';
 import path from 'path';
+import { getIntrospectedSchema } from '../middleware/queryGuard.middleware'; // Import the schema introspector
 
 const CONFIG_PATH = path.join(process.cwd(), 'dashboard_config.json');
 
@@ -22,19 +23,26 @@ export const getTables = async (_req: Request, res: Response) => {
 // ── DELETE /api/table/:table ─────────────────────────────────
 export const deleteTable = async (req: Request, res: Response) => {
   const { table } = req.params;
+
   try {
+    const schema = await getIntrospectedSchema();
+
     // Prevent dropping protected tables if any
     if (table.startsWith('sqlite_')) {
       return res.status(403).json({ error: 'Cannot drop system tables.' });
     }
     
-    // Check if table exists
-    const exists = await db.schema.hasTable(table);
-    if (!exists) {
-      return res.status(404).json({ error: 'La tabla no existe.' });
+    // Validate table name against introspected schema
+    if (!schema[table]) {
+      return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
     }
 
-    await db.schema.dropTable(table);
+    // Use Knex's schema builder for dropping tables, which is safer
+    // Ensure the table name is properly escaped by Knex
+    await db.schema.dropTableIfExists(table); // Use dropTableIfExists for idempotency
+
+    // Clear the cached schema so it's re-introspected next time
+    (getIntrospectedSchema as any).clearCache();
     res.json({ message: `Fuente de datos '${table}' eliminada correctamente.` });
   } catch (err: any) {
     console.error('deleteTable error:', err);
@@ -45,8 +53,17 @@ export const deleteTable = async (req: Request, res: Response) => {
 // ── GET /api/schema/:table ───────────────────────────────────
 export const getSchema = async (req: Request, res: Response) => {
   const { table } = req.params;
+
   try {
-    const info = await db.raw(`PRAGMA table_info("${table}")`);
+    const introspectedSchema = await getIntrospectedSchema();
+
+    // Validate table name against introspected schema
+    if (!introspectedSchema[table]) {
+      return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
+    }
+
+    // Retrieve schema directly from introspected data
+    const info = introspectedSchema[table];
     const schema: Record<string, string> = {};
     for (const col of info) {
       schema[col.name] = col.type;
@@ -63,21 +80,42 @@ export const getSchema = async (req: Request, res: Response) => {
 export const queryData = async (req: Request, res: Response) => {
   const { table, columns, aggregations, groupBy, filters } = req.body;
 
-  if (!table) return res.status(400).json({ error: 'Se requiere el nombre de la tabla.' });
+  if (!table) {
+    return res.status(400).json({ error: 'Se requiere el nombre de la tabla.' });
+  }
 
   try {
-    let query = db(table);
+    const schema = await getIntrospectedSchema();
+
+    // Validate table name
+    if (!schema[table]) {
+      return res.status(400).json({ error: `Table '${table}' does not exist or is not allowed.` });
+    }
+    const allowedColumns = schema[table].map(col => col.name);
+
+    let query = db(table); // Knex will escape the table name
 
     // Build SELECT clause
     const selectCols: any[] = [];
     if (columns?.length) {
-      for (const col of columns) selectCols.push(col);
+      for (const col of columns) { // Validate columns
+        if (!allowedColumns.includes(col)) {
+          return res.status(400).json({ error: `Columna '${col}' no permitida.` });
+        }
+        selectCols.push(col);
+      }
     }
     if (aggregations?.length) {
       for (const agg of aggregations) {
-        const { column, func, alias } = agg;
+        const { column, func, alias } = agg; // func is now validated
         const validFuncs = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
-        if (!validFuncs.includes(func?.toUpperCase())) continue;
+        if (!column || !allowedColumns.includes(column)) { // Validate column for aggregation
+          return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
+        }
+        // Whitelist aggregation function
+        if (!validFuncs.includes(func?.toUpperCase())) {
+          return res.status(400).json({ error: `Función de agregación '${func}' no válida.` });
+        }
         selectCols.push(db.raw(`${func.toUpperCase()}("${column}") as "${alias || column}"`));
       }
     }
@@ -89,15 +127,26 @@ export const queryData = async (req: Request, res: Response) => {
 
     // GROUP BY
     if (groupBy?.length) {
+      for (const col of groupBy) { // Validate group by columns
+        if (!allowedColumns.includes(col)) {
+          return res.status(400).json({ error: `Columna '${col}' no permitida para GROUP BY.` });
+        }
+      }
       query = query.groupBy(groupBy);
     }
 
     // Filters (WHERE)
     if (filters?.length) {
       for (const f of filters) {
-        const { column: col, operator, value } = f;
-        if (!col || !operator) continue;
-        if (operator === 'LIKE') {
+        const { column: col, operator, value } = f; // operator is now validated
+        const validOperators = ['=', '>', '<', 'LIKE', '!=', '>=', '<=']; // Whitelist operators
+        if (!col || !allowedColumns.includes(col)) { // Validate column for filter
+          return res.status(400).json({ error: `Columna '${col}' no permitida para filtro.` });
+        }
+        if (!operator || !validOperators.includes(operator.toUpperCase())) {
+          return res.status(400).json({ error: `Operador '${operator}' no válido para filtro.` });
+        }
+        if (operator.toUpperCase() === 'LIKE') {
           query = query.where(col, 'like', `%${value}%`);
         } else {
           query = query.where(col, operator, value);
@@ -133,7 +182,16 @@ export const getDashboardConfig = async (_req: Request, res: Response) => {
 // ── POST /api/dashboard/save ─────────────────────────────────
 export const saveDashboardConfig = async (req: Request, res: Response) => {
   try {
-    await fs.promises.writeFile(CONFIG_PATH, JSON.stringify(req.body, null, 2), 'utf-8');
+    // Basic validation for dashboard config structure
+    const { title, charts } = req.body;
+    if (typeof title !== 'string' || !Array.isArray(charts)) {
+      return res.status(400).json({ error: 'Estructura de configuración de dashboard inválida.' });
+    }
+    // Further validation for each chart in 'charts' array could be added here
+    // For now, we'll just ensure it's a valid JSON structure
+
+    // Sanitize req.body to only include expected fields if necessary
+    await fs.promises.writeFile(CONFIG_PATH, JSON.stringify({ title, charts }, null, 2), 'utf-8');
     res.json({ message: 'Configuración guardada.' });
   } catch (err: any) {
     console.error('saveDashboardConfig error:', err);
@@ -145,13 +203,31 @@ export const saveDashboardConfig = async (req: Request, res: Response) => {
 export const getData = async (req: Request, res: Response) => {
   const { tableName, columns, where } = req.body;
   try {
-    let query = db(tableName);
+    const schema = await getIntrospectedSchema();
+
+    // Validate table name
+    if (!schema[tableName]) {
+      return res.status(400).json({ error: `Table '${tableName}' does not exist or is not allowed.` });
+    }
+    const allowedColumns = schema[tableName].map(col => col.name);
+
+    let query = db(tableName); // Knex will escape the table name
     if (columns?.length) {
+      for (const col of columns) { // Validate columns
+        if (!allowedColumns.includes(col)) {
+          return res.status(400).json({ error: `Columna '${col}' no permitida.` });
+        }
+      }
       query = query.select(columns);
     } else {
       query = query.select('*');
     }
     if (where && Object.keys(where).length) {
+      for (const key in where) { // Validate columns in WHERE clause
+        if (!allowedColumns.includes(key)) {
+          return res.status(400).json({ error: `Columna '${key}' en WHERE clause no permitida.` });
+        }
+      }
       query = query.where(where);
     }
     res.json(await query);
