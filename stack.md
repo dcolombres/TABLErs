@@ -27,5 +27,9 @@ Se evaluaron dos opciones para el backend del MVP:
 
 ## Seguridad
 - **Sanitización:** Uso de `knex` o consultas parametrizadas para evitar SQL Injection.
-- **Validación:** `zod` o `joi` para esquemas de API.
-- **Archivos:** Validación por extensión y tamaño (máx 50MB).
+- **Validación de Entradas:** Implementación de validación exhaustiva para todos los parámetros de consulta y conexión a bases de datos, incluyendo nombres de tablas, columnas, funciones de agregación y operadores de filtro.
+- **Manejo Seguro de API Keys:** Las claves API externas se gestionan a través de variables de entorno en el backend, nunca expuestas en el frontend.
+- **Prevención de SSRF:** Controles para evitar conexiones a hosts locales o IPs privadas en la configuración de fuentes de datos.
+- **Archivos:** Validación por extensión y tamaño (máx 50MB) durante la carga.
+- **Manejo de Errores:** Recomendación de implementar un middleware centralizado para el manejo de errores, evitando la fuga de información sensible en producción.
+- **Seguridad de Dependencias:** Recomendación de auditorías regulares con herramientas como `npm audit` y actualización constante de dependencias.
