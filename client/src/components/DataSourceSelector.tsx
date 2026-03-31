@@ -24,7 +24,6 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable }
     database: '',
   });
   const [gdriveUrl, setGdriveUrl] = useState('');
-  const [googleApiKey, setGoogleApiKey] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,8 +48,8 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable }
   const handleGoogleDriveSync = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setLoading(true);
-      const resp = await axios.post('/gdrive-sync', { gdriveUrl, googleApiKey });
+      setLoading(true); // Keep loading state
+      const resp = await axios.post('/gdrive-sync', { gdriveUrl }); // Remove googleApiKey
       if (resp.status === 200) {
         const tableName = resp.data.tableName;
         const schemaResp = await axios.get(`/schema/${tableName}`);
@@ -138,10 +137,6 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable }
           <div className="mb-4">
             <Label htmlFor="gdrive-url">Google Drive Shareable Link (CSV)</Label>
             <Input id="gdrive-url" value={gdriveUrl} onChange={(e) => setGdriveUrl(e.target.value)} required />
-          </div>
-          <div className="mb-4">
-            <Label htmlFor="google-api-key">Google API Key</Label>
-            <Input id="google-api-key" value={googleApiKey} onChange={(e) => setGoogleApiKey(e.target.value)} required />
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? 'Syncing...' : 'Sync Google Drive File'}

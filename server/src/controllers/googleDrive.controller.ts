@@ -4,10 +4,11 @@ import db from '../services/db.service';
 import { v4 as uuidv4 } from 'uuid';
 
 export const syncGoogleSheet = async (req: Request, res: Response) => {
-  const { gdriveUrl, googleApiKey } = req.body;
+  const { gdriveUrl } = req.body;
+  const googleApiKey = process.env.GOOGLE_API_KEY; // Get API key from environment variable
 
-  if (!gdriveUrl || !googleApiKey) {
-    return res.status(400).json({ error: 'Se requiere la URL de Google Sheets y la API Key.' });
+  if (!gdriveUrl) {
+    return res.status(400).json({ error: 'Se requiere la URL de Google Sheets.' });
   }
 
   try {
