@@ -58,16 +58,37 @@ export const connectSource = (req: Request, res: Response) => {
     // Body: { type, host, port, user, password, database }
     const { type, host, port, user, password, database } = req.body;
 
-    if (type !== 'sqlite') {
-      if (!type || !host || !database) {
-        return res.status(400).json({ error: 'Faltan campos requeridos: type, host, database.' });
+    // 1. Whitelist allowed database types
+    const allowedDbTypes = ['mysql', 'pg', 'sqlite'];
+    if (!type || !allowedDbTypes.includes(type)) {
+      return res.status(400).json({ error: 'Tipo de base de datos no soportado.' });
+    }
+
+    // 2. Basic validation for connection parameters
+    if (type !== 'sqlite') { // SQLite uses a file path, not host/user/password
+      if (!host || !database) {
+        return res.status(400).json({ error: 'Faltan campos requeridos: host, database.' });
+      }
+      // Simple regex to prevent IP addresses or common local/private network ranges
+      // This is a basic check and can be bypassed, but adds a layer of defense.
+      const privateIpRegex = /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|127\.|0\.)/;
+      if (privateIpRegex.test(host) || host === 'localhost') {
+        return res.status(403).json({ error: 'Conexiones a hosts locales o IPs privadas no permitidas.' });
+      }
+      // Further validation for host format (e.g., valid domain or public IP) could be added here.
+    } else {
+      if (!database) {
+        return res.status(400).json({ error: 'Falta el campo requerido: database (ruta del archivo SQLite).' });
+      }
+      // For SQLite, ensure the path is not absolute or outside a designated safe directory
+      // This is a placeholder; a robust solution would involve sanitizing and validating the path.
+      if (path.isAbsolute(database) || database.includes('..')) {
+        return res.status(403).json({ error: 'Ruta de archivo SQLite inválida o no permitida.' });
       }
     }
 
-    const client = type === 'mysql' ? 'mysql2' : (type === 'sqlite' ? 'sqlite3' : 'pg');
-
-    const testDb = knex({
-      client,
+    const testDb = knex({ // Use the client based on the validated type
+      client: type === 'mysql' ? 'mysql2' : (type === 'pg' ? 'pg' : 'sqlite3'),
       connection: type === 'sqlite' ? { filename: database } : { host, port: Number(port), user, password, database },
       useNullAsDefault: type === 'sqlite'
     });
