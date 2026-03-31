@@ -47,7 +47,7 @@ async function getIntrospectedSchema(): Promise<TableSchema> {
  * Prevents SQL Injection by whitelisting table and column names.
  */
 export const queryGuardMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  const { tableName, columns, where } = req.body; // Assuming these are sent from frontend
+  const { tableName, columns, aggregations, groupBy, filters, where } = req.body; // Assuming these are sent from frontend
 
   if (!tableName) {
     return res.status(400).json({ error: 'Table name is required.' });
@@ -65,18 +65,55 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
 
     // 2. Validate requested columns
     if (columns && Array.isArray(columns)) {
-      for (const col of columns) {
-        if (!allowedColumns.includes(col)) {
-          return res.status(400).json({ error: `Column '${col}' not allowed for table '${tableName}'.` });
+      for (const column of columns) {
+        if (!allowedColumns.includes(column)) {
+          return res.status(400).json({ error: `Columna '${column}' no permitida para la tabla '${tableName}'.` });
         }
       }
     }
 
-    // 3. Validate columns in WHERE clause (assuming simple object for now)
+    // 3. Validate aggregations
+    if (aggregations && Array.isArray(aggregations)) {
+      const validFuncs = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
+      for (const agg of aggregations) {
+        const { column, func } = agg;
+        if (!column || !allowedColumns.includes(column)) {
+          return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
+        }
+        if (!func || !validFuncs.includes(func.toUpperCase())) {
+          return res.status(400).json({ error: `Función de agregación '${func}' no válida.` });
+        }
+      }
+    }
+
+    // 4. Validate groupBy columns
+    if (groupBy && Array.isArray(groupBy)) {
+      for (const column of groupBy) {
+        if (!allowedColumns.includes(column)) {
+          return res.status(400).json({ error: `Columna '${column}' no permitida para GROUP BY.` });
+        }
+      }
+    }
+
+    // 5. Validate filters
+    if (filters && Array.isArray(filters)) {
+      const validOperators = ['=', '>', '<', 'LIKE', '!=', '>=', '<='];
+      for (const filter of filters) {
+        const { column, operator } = filter;
+        if (!column || !allowedColumns.includes(column)) {
+          return res.status(400).json({ error: `Columna '${column}' no permitida para filtro.` });
+        }
+        if (!operator || !validOperators.includes(operator.toUpperCase())) {
+          return res.status(400).json({ error: `Operador '${operator}' no válido para filtro.` });
+        }
+      }
+    }
+
+    // 6. Validate columns in WHERE clause (assuming simple object for now) - this is for the legacy getData endpoint
     if (where && typeof where === 'object') {
       for (const key in where) {
         if (!allowedColumns.includes(key)) {
-          return res.status(400).json({ error: `Column '${key}' in WHERE clause not allowed for table '${tableName}'.` });
+          return res.status(400).json({ error: `Columna '${key}' en WHERE clause no permitida.` });
         }
       }
     }
