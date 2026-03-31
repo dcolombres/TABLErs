@@ -55,6 +55,27 @@ Este documento detalla los pasos para levantar el MVP del Generador de Tableros 
    - **Agregación:** `SUM`.
 7. Haz clic en **"Guardar Cambios"** y ¡listo!
 
-## Variables de Entorno (Opcional)
+## Configuración de Variables de Entorno
 
-Si deseas conectar una base de datos PostgreSQL o MySQL externa, asegúrate de tener las credenciales correctas en el formulario de "Conexión Directa". No se requiere un archivo `.env` por defecto para el modo SQLite.
+Para el correcto funcionamiento del aplicativo, especialmente en entornos de producción o para la integración con servicios externos, es necesario configurar algunas variables de entorno.
+
+### Frontend (`client/.env`)
+
+Crea un archivo `.env` en el directorio `client/` con el siguiente contenido:
+
+```
+VITE_API_BASE_URL=http://localhost:3001
+```
+
+*   Para desarrollo local, `http://localhost:3001` es la URL por defecto del backend.
+*   Para despliegues en producción (ej. GitHub Pages), esta URL debe apuntar a la dirección pública de tu backend.
+
+### Backend (`server/.env`)
+
+Si utilizas la funcionalidad de sincronización con Google Drive, el backend requiere una clave API de Google. Crea un archivo `.env` en el directorio `server/` con el siguiente contenido:
+
+```
+GOOGLE_API_KEY=TU_CLAVE_API_DE_GOOGLE
+```
+
+Reemplaza `TU_CLAVE_API_DE_GOOGLE` con tu clave API real. **Nunca expongas esta clave en el código fuente del frontend.**
