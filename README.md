@@ -29,7 +29,9 @@ Tablers es un generador de tableros de control "self-service" inspirado en Zoho 
 - **Base de Datos:** SQLite (local), PostgreSQL/MySQL (conectores).
 
 ## Seguridad
-
-- Consultas SQL parametrizadas mediante Knex para prevenir SQL Injection.
-- Validación de archivos por extensión y tamaño (límite 50MB).
-- Sanitización de nombres de tablas y columnas durante la importación.
+- **Prevención de Inyección SQL:** Consultas parametrizadas con Knex y validación exhaustiva de entradas (nombres de tablas, columnas, funciones de agregación, operadores de filtro) en el backend.
+- **Manejo Seguro de API Keys:** Las claves API externas (ej. Google API Key) se gestionan de forma segura en el backend a través de variables de entorno, nunca expuestas en el frontend.
+- **Prevención de SSRF:** Implementación de validaciones para evitar conexiones a servicios internos o IPs privadas en la configuración de fuentes de datos.
+- **Validación de Archivos:** Por extensión y tamaño (límite 50MB) durante la carga.
+- **Sanitización de Datos:** Nombres de tablas y columnas sanitizados durante la importación.
+- **Compatibilidad con GitHub Pages:** Configuración del frontend para un despliegue seguro y funcional en GitHub Pages.
