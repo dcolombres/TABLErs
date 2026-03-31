@@ -27,6 +27,8 @@ jobs:
       - name: Build client 🏗️
         run: npm run build
         working-directory: ./client
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }} # Reemplaza con la URL de tu backend desplegado
 
       - name: Deploy to GitHub Pages 🚀
         uses: peaceiris/actions-gh-pages@v4
