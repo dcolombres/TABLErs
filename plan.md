@@ -2,17 +2,20 @@
 
 ## 1. Objetivo de la Revisión
 
-Este documento detalla el plan para la revisión del proyecto "Tablers". El objetivo principal es [**PENDIENTE: Especificar el objetivo de la revisión, por ejemplo: evaluar la arquitectura, la calidad del código, la adherencia a buenas prácticas, la eficiencia de ciertas funcionalidades, etc.**].
+Este documento detalla el plan para la revisión del proyecto "Tablers". El objetivo principal es evaluar la arquitectura general, la calidad del código del frontend, la seguridad del backend y la documentación existente.
 
 ## 2. Alcance de la Revisión
 
 La revisión se centrará en los siguientes aspectos:
-*   [**PENDIENTE: Listar los módulos o áreas específicas a revisar (ej. `server/src`, `client/src`, configuración de CI/CD, etc.)**]
-*   [**PENDIENTE: Listar los tipos de artefactos a revisar (ej. código fuente, archivos de configuración, documentación, scripts de base de datos)**]
+*   **Arquitectura General:** Evaluación de la estructura del proyecto, la división entre frontend y backend, y la comunicación entre componentes.
+*   **Calidad del Código del Frontend:** Revisión de las mejores prácticas, legibilidad, mantenibilidad y uso de patrones en el código del directorio `client/src`.
+*   **Seguridad del Backend:** Análisis de posibles vulnerabilidades, manejo de datos sensibles, autenticación y autorización en el código del directorio `server/src`.
+*   **Documentación:** Verificación de la existencia, actualidad y claridad de los archivos de documentación como `README.md`, `INSTRUCTIVOS.md`, `plan.md` y `stack.md`.
+*   **Artefactos a revisar:** Código fuente, archivos de configuración, documentación, scripts de base de datos.
 
 ## 3. Metodología
 
-Se seguirá la siguiente metodología para la revisión:
+Se seguirá la siguiente metodología para la revisión, adaptada a los aspectos definidos en el alcance:
 1.  **Análisis de Estructura:** Revisión de la organización general del proyecto y la coherencia entre módulos.
 2.  **Revisión de Código:** Evaluación de la calidad del código, legibilidad, mantenibilidad, adherencia a patrones y buenas prácticas.
 3.  **Análisis de Dependencias:** Identificación de dependencias y su justificación.
