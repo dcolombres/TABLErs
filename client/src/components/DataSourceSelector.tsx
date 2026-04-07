@@ -15,6 +15,7 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
   const [activeTab, setActiveTab] = useState<'file' | 'db' | 'gdrive'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [newDataSourceName, setNewDataSourceName] = useState(''); // New state for data source name
 
   const fetchTables = async () => {
     try {
@@ -34,13 +35,22 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
+    if (!newDataSourceName.trim()) {
+      setUploadStatus('✗ Por favor, ingresa un nombre para la fuente de datos.');
+      return;
+    }
     setLoading(true);
     setUploadStatus('');
     try {
       const fd = new FormData();
       fd.append('file', file);
+      fd.append('name', newDataSourceName); // Append the new data source name
+      // TODO: Implement dynamic dashboardId selection/creation. For now, using a placeholder.
+      fd.append('dashboardId', '1'); // Placeholder dashboardId
+
       const resp = await api.post('/connect', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setUploadStatus(`✓ ${resp.data.message}`);
+      setNewDataSourceName(''); // Clear input after successful upload
       await fetchTables();
       onConnected?.();
     } catch (err: any) {
@@ -166,6 +176,23 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
       {/* Tab content */}
       {activeTab === 'file' && (
         <form onSubmit={handleFileUpload} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+              Nombre de la fuente de datos
+            </label>
+            <input
+              type="text"
+              value={newDataSourceName}
+              onChange={e => setNewDataSourceName(e.target.value)}
+              placeholder="Ej: Ventas 2023"
+              required
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10, fontSize: 13, boxSizing: 'border-box',
+                background: 'var(--bg-overlay)', border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)', outline: 'none',
+              }}
+            />
+          </div>
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
               Archivo SQL, CSV o Excel
