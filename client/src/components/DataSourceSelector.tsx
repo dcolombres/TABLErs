@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 
+interface DataSource {
+  id: number;
+  name: string;
+  table_name: string;
+}
+
 interface DataSourceSelectorProps {
   onSelectTable?: (tableName: string) => void;
   onConnected?: () => void;
 }
 
 const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, onConnected }) => {
-  const [tables, setTables] = useState<string[]>([]);
-  const [selectedTable, setSelectedTable] = useState('');
+  const [dataSources, setDataSources] = useState<DataSource[]>([]);
+  const [selectedDataSourceId, setSelectedDataSourceId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ type: 'mysql', host: '', user: '', password: '', database: '' });
   const [loading, setLoading] = useState(false);
   const [gdriveUrl, setGdriveUrl] = useState('');
@@ -20,13 +26,9 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
   const fetchTables = async () => {
     try {
       const res = await api.get('/tables');
-      // Filter out internal Knex.js migration tables
-      const filteredTables = res.data.filter((table: string) =>
-        table !== 'knex_migrations' && table !== 'knex_migrations_lock' && table !== 'data_sources'
-      );
-      setTables(filteredTables);
+      setDataSources(res.data); // Now expects an array of DataSource objects
     } catch (e) {
-      console.error('Error fetching tables:', e);
+      console.error('Error fetching data sources:', e);
     }
   };
 
@@ -91,12 +93,12 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
     }
   };
 
-  const handleDeleteTable = async (table: string) => {
-    if (!confirm(`¿Eliminar la tabla "${table}"?`)) return;
+  const handleDeleteDataSource = async (dataSourceId: number) => {
+    if (!confirm(`¿Eliminar la fuente de datos? Esta acción también eliminará la tabla asociada.`)) return;
     try {
-      await api.delete(`/table/${table}`);
+      await api.delete(`/data-sources/${dataSourceId}`);
       await fetchTables();
-      if (selectedTable === table) setSelectedTable('');
+      if (selectedDataSourceId === dataSourceId) setSelectedDataSourceId(null);
     } catch (err: any) {
       alert(`Error: ${err?.response?.data?.error || err.message}`);
     }
@@ -112,7 +114,7 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Existing tables */}
-      {tables.length > 0 && (
+      {dataSources.length > 0 && (
         <div style={{
           background: 'var(--bg-overlay)',
           borderRadius: 12,
@@ -120,37 +122,40 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
           padding: '16px',
         }}>
           <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Tablas disponibles
+            Fuentes de datos disponibles
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {tables.map(table => (
-              <div key={table} style={{
+            {dataSources.map(dataSource => (
+              <div key={dataSource.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '8px 12px', borderRadius: 8,
-                background: selectedTable === table ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
-                border: `1px solid ${selectedTable === table ? 'rgba(99,102,241,0.3)' : 'var(--border-subtle)'}`,
+                background: selectedDataSourceId === dataSource.id ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                border: `1px solid ${selectedDataSourceId === dataSource.id ? 'rgba(99,102,241,0.3)' : 'var(--border-subtle)'}`,
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
-                onClick={() => { setSelectedTable(table); onSelectTable?.(table); }}
+                onClick={() => { setSelectedDataSourceId(dataSource.id); onSelectTable?.(dataSource.table_name); }}
               >
-                <span style={{ fontSize: 13, fontWeight: 600, color: selectedTable === table ? 'var(--accent-from)' : 'var(--text-primary)' }}>
-                  {table}
+                <span style={{ fontSize: 13, fontWeight: 600, color: selectedDataSourceId === dataSource.id ? 'var(--accent-from)' : 'var(--text-primary)' }}>
+                  {dataSource.name} ({dataSource.table_name})
                 </span>
                 <button
-                  onClick={ev => { ev.stopPropagation(); handleDeleteTable(table); }}
+                  onClick={ev => { ev.stopPropagation(); handleDeleteDataSource(dataSource.id); }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: 16, padding: '0 4px', lineHeight: 1 }}
                   title="Eliminar"
                 >×</button>
               </div>
             ))}
           </div>
-          {selectedTable && (
+          {selectedDataSourceId !== null && (
             <button
               className="btn-primary"
               style={{ marginTop: 14, width: '100%', padding: '10px', fontSize: 13 }}
-              onClick={() => onConnected?.()}
+              onClick={() => {
+                const selectedDs = dataSources.find(ds => ds.id === selectedDataSourceId);
+                if (selectedDs) onConnected?.();
+              }}
             >
-              Usar tabla "{selectedTable}" →
+              Usar fuente "{dataSources.find(ds => ds.id === selectedDataSourceId)?.name}" →
             </button>
           )}
         </div>

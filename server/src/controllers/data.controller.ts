@@ -9,14 +9,13 @@ const CONFIG_PATH = path.join(process.cwd(), 'dashboard_config.json');
 // ── GET /api/tables ──────────────────────────────────────────
 export const getTables = async (_req: Request, res: Response) => {
   try {
-    const query = await db.raw(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
-    );
-    // In knex sqlite, the result is directly an array of objects
-    res.json(query.map((row: any) => row.name));
+    const dataSources = await db('data_sources')
+      .select('id', 'name', 'table_name')
+      .whereNotIn('table_name', ['knex_migrations', 'knex_migrations_lock']); // Filter out internal tables
+    res.json(dataSources);
   } catch (err: any) {
     console.error('getTables error:', err);
-    res.status(500).json({ error: 'Error al obtener las tablas.' });
+    res.status(500).json({ error: 'Error al obtener las fuentes de datos.' });
   }
 };
 
