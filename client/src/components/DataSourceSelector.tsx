@@ -1,186 +1,253 @@
-import axios from 'axios';
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Label } from './ui/label';
-import { Table } from './ui/table';
-import { TableHeader, TableRow, TableHead, TableBody, TableCell } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import React, { useState, useEffect } from 'react';
+import api from '../lib/api';
 
 interface DataSourceSelectorProps {
-  onSelectTable: (tableName: string) => void;
+  onSelectTable?: (tableName: string) => void;
+  onConnected?: () => void;
 }
 
-const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable }) => {
+const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, onConnected }) => {
   const [tables, setTables] = useState<string[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string>('');
-  const [tableSchema, setTableSchema] = useState<any[]>([]);
-  const [formData, setFormData] = useState({
-    type: 'mysql',
-    host: '',
-    user: '',
-    password: '',
-    database: '',
-  });
-  const [gdriveUrl, setGdriveUrl] = useState('');
+  const [selectedTable, setSelectedTable] = useState('');
+  const [formData, setFormData] = useState({ type: 'mysql', host: '', user: '', password: '', database: '' });
   const [loading, setLoading] = useState(false);
+  const [gdriveUrl, setGdriveUrl] = useState('');
+  const [activeTab, setActiveTab] = useState<'file' | 'db' | 'gdrive'>('file');
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState('');
 
-  useEffect(() => {
-    const fetchTables = async () => {
-      const res = await axios.get('/tables');
-      setTables(res.data);
-    };
-    fetchTables();
-  }, []);
+  const fetchTables = async () => {
+    try {
+      const res = await api.get('/tables');
+      // Filter out internal Knex.js migration tables
+      const filteredTables = res.data.filter((table: string) =>
+        table !== 'knex_migrations' && table !== 'knex_migrations_lock'
+      );
+      setTables(filteredTables);
+    } catch (e) {
+      console.error('Error fetching tables:', e);
+    }
+  };
 
-  const handleConnect = async () => {
-    const resp = await axios.post('/connect', formData);
-    if (resp.status === 200) {
-      alert('Connected successfully!');
-      const tableName = resp.data.tableName;
-      setSelectedTable(tableName);
-      const schemaResp = await axios.get(`/schema/${tableName}`);
-      setTableSchema(schemaResp.data);
+  useEffect(() => { fetchTables(); }, []);
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+    setLoading(true);
+    setUploadStatus('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const resp = await api.post('/connect', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setUploadStatus(`✓ ${resp.data.message}`);
+      await fetchTables();
+      onConnected?.();
+    } catch (err: any) {
+      setUploadStatus(`✗ ${err?.response?.data?.error || err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const resp = await api.post('/connect', formData);
+      setUploadStatus(`✓ ${resp.data.message}`);
+      await fetchTables();
+      onConnected?.();
+    } catch (err: any) {
+      setUploadStatus(`✗ ${err?.response?.data?.error || err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleDriveSync = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      setLoading(true); // Keep loading state
-      const resp = await axios.post('/gdrive-sync', { gdriveUrl }); // Remove googleApiKey
-      if (resp.status === 200) {
-        const tableName = resp.data.tableName;
-        const schemaResp = await axios.get(`/schema/${tableName}`);
-        setTableSchema(schemaResp.data);
-        alert('Google Drive file synced successfully!');
-      }
-    } catch (error) {
-      console.error('Error syncing Google Drive file:', error);
-      alert('Failed to sync Google Drive file.');
+      const resp = await api.post('/gdrive-sync', { gdriveUrl });
+      setUploadStatus(`✓ Google Sheet sincronizado. Tabla: ${resp.data.tableName}`);
+      setGdriveUrl('');
+      await fetchTables();
+      onConnected?.();
+    } catch (err: any) {
+      setUploadStatus(`✗ ${err?.response?.data?.error || err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteTable = async (table: string) => {
-    const resp = await axios.delete(`/table/${table}`);
-    if (resp.status === 200) {
-      alert('Table deleted successfully!');
-      const res = await axios.get('/tables');
-      setTables(res.data);
-      setSelectedTable('');
-      setTableSchema([]);
+    if (!confirm(`¿Eliminar la tabla "${table}"?`)) return;
+    try {
+      await api.delete(`/table/${table}`);
+      await fetchTables();
+      if (selectedTable === table) setSelectedTable('');
+    } catch (err: any) {
+      alert(`Error: ${err?.response?.data?.error || err.message}`);
     }
   };
 
+  const tabs = [
+    { id: 'file' as const, label: '📁 Archivo SQL/CSV' },
+    { id: 'db' as const, label: '🔌 Base de datos' },
+    { id: 'gdrive' as const, label: '📊 Google Sheets' },
+  ];
+
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Data Source Configuration</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* Existing Tables */}
-      <div className="mb-6">
-        <Label htmlFor="existing-tables" className="block text-sm font-medium text-gray-700">
-          Existing Tables
-        </Label>
-        <Select onValueChange={(value) => {
-          setSelectedTable(value);
-          onSelectTable(value);
-        }} value={selectedTable}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a table" />
-          </SelectTrigger>
-          <SelectContent>
-            {tables.map((table) => (
-              <SelectItem key={table} value={table}>
-                {table}
-              </SelectItem>
+      {/* Existing tables */}
+      {tables.length > 0 && (
+        <div style={{
+          background: 'var(--bg-overlay)',
+          borderRadius: 12,
+          border: '1px solid var(--border-subtle)',
+          padding: '16px',
+        }}>
+          <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Tablas disponibles
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {tables.map(table => (
+              <div key={table} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', borderRadius: 8,
+                background: selectedTable === table ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                border: `1px solid ${selectedTable === table ? 'rgba(99,102,241,0.3)' : 'var(--border-subtle)'}`,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+                onClick={() => { setSelectedTable(table); onSelectTable?.(table); }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 600, color: selectedTable === table ? 'var(--accent-from)' : 'var(--text-primary)' }}>
+                  {table}
+                </span>
+                <button
+                  onClick={ev => { ev.stopPropagation(); handleDeleteTable(table); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: 16, padding: '0 4px', lineHeight: 1 }}
+                  title="Eliminar"
+                >×</button>
+              </div>
             ))}
-          </SelectContent>
-        </Select>
-        {selectedTable && (
-          <Button variant="destructive" className="mt-2" onClick={() => handleDeleteTable(selectedTable)}>
-            Delete Selected Table
-          </Button>
-        )}
-      </div>
-
-      {/* Connect to MySQL */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h3 className="text-lg font-semibold mb-3">Connect to MySQL</h3>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <Label htmlFor="mysql-host">Host</Label>
-            <Input id="mysql-host" value={formData.host} onChange={(e) => setFormData({ ...formData, host: e.target.value })} />
           </div>
-          <div>
-            <Label htmlFor="mysql-user">User</Label>
-            <Input id="mysql-user" value={formData.user} onChange={(e) => setFormData({ ...formData, user: e.target.value })} />
-          </div>
-          <div>
-            <Label htmlFor="mysql-password">Password</Label>
-            <Input id="mysql-password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-          </div>
-          <div>
-            <Label htmlFor="mysql-database">Database</Label>
-            <Input id="mysql-database" value={formData.database} onChange={(e) => setFormData({ ...formData, database: e.target.value })} />
-          </div>
+          {selectedTable && (
+            <button
+              className="btn-primary"
+              style={{ marginTop: 14, width: '100%', padding: '10px', fontSize: 13 }}
+              onClick={() => onConnected?.()}
+            >
+              Usar tabla "{selectedTable}" →
+            </button>
+          )}
         </div>
-        <Button onClick={handleConnect}>Connect to MySQL</Button>
+      )}
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, padding: 4, background: 'var(--bg-overlay)', borderRadius: 10 }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1, padding: '8px 4px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              fontSize: 11, fontWeight: 700,
+              background: activeTab === tab.id ? 'var(--bg-elevated)' : 'transparent',
+              color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}
+          >{tab.label}</button>
+        ))}
       </div>
 
-      {/* Google Drive Sync */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h3 className="text-lg font-semibold mb-3">Sync from Google Drive (CSV)</h3>
-        <form onSubmit={handleGoogleDriveSync}>
-          <div className="mb-4">
-            <Label htmlFor="gdrive-url">Google Drive Shareable Link (CSV)</Label>
-            <Input id="gdrive-url" value={gdriveUrl} onChange={(e) => setGdriveUrl(e.target.value)} required />
+      {/* Tab content */}
+      {activeTab === 'file' && (
+        <form onSubmit={handleFileUpload} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+              Archivo SQL, CSV o Excel
+            </label>
+            <input
+              type="file"
+              accept=".sql,.csv,.xls,.xlsx"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10, fontSize: 13,
+                background: 'var(--bg-overlay)', border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)', cursor: 'pointer',
+              }}
+            />
           </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Syncing...' : 'Sync Google Drive File'}
-          </Button>
+          <button type="submit" className="btn-primary" disabled={loading || !file} style={{ padding: '11px', fontSize: 13 }}>
+            {loading ? 'Procesando...' : 'Subir archivo'}
+          </button>
         </form>
-      </div>
+      )}
 
-      {/* Connect to Default SQLite */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h3 className="text-lg font-semibold mb-3">Connect to Default SQLite</h3>
-        <p className="mb-3">Connects to the local `data.sqlite` file.</p>
-        <Button onClick={async () => {
-          const dbConfig = { type: 'sqlite', path: 'data.sqlite' };
-          try {
-            await axios.post('/connect', dbConfig);
-            alert('Connected to default SQLite successfully!');
-            // Optionally refresh tables or schema
-          } catch (error) {
-            console.error('Error connecting to default SQLite:', error);
-            alert('Failed to connect to default SQLite.');
-          }
-        }}>Connect to Default SQLite</Button>
-      </div>
+      {activeTab === 'db' && (
+        <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {(['host', 'user', 'password', 'database'] as const).map(field => (
+              <div key={field}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'capitalize' }}>
+                  {field}
+                </label>
+                <input
+                  type={field === 'password' ? 'password' : 'text'}
+                  value={formData[field]}
+                  onChange={e => setFormData(f => ({ ...f, [field]: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13, boxSizing: 'border-box',
+                    background: 'var(--bg-overlay)', border: '1px solid var(--border-default)',
+                    color: 'var(--text-primary)', outline: 'none',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '11px', fontSize: 13 }}>
+            {loading ? 'Conectando...' : 'Conectar base de datos'}
+          </button>
+        </form>
+      )}
 
-      {/* Table Schema Display */}
-      {selectedTable && tableSchema.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Schema for {selectedTable}</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Column Name</TableHead>
-                <TableHead>Data Type</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableSchema.map((col, index) => (
-                <TableRow key={index}>
-                  <TableCell>{col.name}</TableCell>
-                  <TableCell>{col.type}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      {activeTab === 'gdrive' && (
+        <form onSubmit={handleGoogleDriveSync} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+              URL de Google Sheets (pública)
+            </label>
+            <input
+              type="url"
+              value={gdriveUrl}
+              onChange={e => setGdriveUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              required
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10, fontSize: 13, boxSizing: 'border-box',
+                background: 'var(--bg-overlay)', border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)', outline: 'none',
+              }}
+            />
+          </div>
+          <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '11px', fontSize: 13 }}>
+            {loading ? 'Sincronizando...' : 'Sincronizar Google Sheets'}
+          </button>
+        </form>
+      )}
+
+      {/* Status message */}
+      {uploadStatus && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+          background: uploadStatus.startsWith('✓') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+          border: `1px solid ${uploadStatus.startsWith('✓') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          color: uploadStatus.startsWith('✓') ? 'var(--success)' : 'var(--danger)',
+        }}>
+          {uploadStatus}
         </div>
       )}
     </div>

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import db from '../services/db.service';
+import db from '../services/db.service.js';
 import fs from 'fs';
 import path from 'path';
-import { getIntrospectedSchema } from '../middleware/queryGuard.middleware'; // Import the schema introspector
+import { getIntrospectedSchema } from '../middleware/queryGuard.middleware.js'; // Import the schema introspector
 
 const CONFIG_PATH = path.join(process.cwd(), 'dashboard_config.json');
 
@@ -28,8 +28,9 @@ export const deleteTable = async (req: Request, res: Response) => {
     const schema = await getIntrospectedSchema();
 
     // Prevent dropping protected tables if any
-    if (table.startsWith('sqlite_')) {
-      return res.status(403).json({ error: 'Cannot drop system tables.' });
+    const protectedTables = ['knex_migrations', 'knex_migrations_lock'];
+    if (table.startsWith('sqlite_') || protectedTables.includes(table)) {
+      return res.status(403).json({ error: 'Cannot drop system or protected tables.' });
     }
     
     // Validate table name against introspected schema
