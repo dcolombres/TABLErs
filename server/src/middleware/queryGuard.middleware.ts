@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import db from '../services/db.service';
+import db from '../services/db.service.js';
 
 interface ColumnInfo {
   name: string;
@@ -12,26 +12,31 @@ interface TableSchema {
 
 let introspectedSchema: TableSchema | null = null;
 
+export function clearSchemaCache() {
+  introspectedSchema = null;
+}
+
 /**
- * Introspects the SQLite database to get all user-defined tables and their columns.
- * Caches the schema for performance.
+ * Introspects the local SQLite database to get all user-defined tables and their columns.
+ * Caches the schema for performance. Excludes internal/system tables.
  */
-async function getIntrospectedSchema(): Promise<TableSchema> {
+export async function getIntrospectedSchema(): Promise<TableSchema> {
   if (introspectedSchema) {
     return introspectedSchema;
   }
 
   const schema: TableSchema = {};
+  const excluded = ['knex_migrations', 'knex_migrations_lock', 'data_sources', 'dashboards'];
 
-  // Get all user tables (excluding sqlite_sequence and internal tables)
   const tables = await db('sqlite_master')
     .select('name')
     .where('type', 'table')
-    .where('name', 'not like', 'sqlite_%');
+    .where('name', 'not like', 'sqlite_%')
+    .whereNotIn('name', excluded);
 
   for (const table of tables) {
     const tableName = table.name;
-    const columnsInfo = await db.raw(`PRAGMA table_info(${tableName})`);
+    const columnsInfo = await db.raw(`PRAGMA table_info("${tableName}")`);
     schema[tableName] = columnsInfo.map((col: any) => ({
       name: col.name,
       type: col.type,
@@ -43,31 +48,58 @@ async function getIntrospectedSchema(): Promise<TableSchema> {
 }
 
 /**
- * Middleware to validate dynamic queries from the frontend against the database schema.
- * Prevents SQL Injection by whitelisting table and column names.
+ * Resolves the target table name from the request.
+ * Priority: req.body.table > req.body.tableName > req.params.table > req.params.tableName
+ */
+function resolveTableName(req: Request): string | undefined {
+  return (
+    req.body?.table ||
+    req.body?.tableName ||
+    req.params?.table ||
+    req.params?.tableName
+  );
+}
+
+/**
+ * Middleware to validate dynamic queries against the local SQLite schema.
+ * - For external DB sources (mysql, pg, sqlite type), bypasses local validation.
+ * - For local sources, whitelists table name + column names to prevent SQLi.
  */
 export const queryGuardMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  const { tableName, columns, aggregations, groupBy, filters, where } = req.body; // Assuming these are sent from frontend
+  const tableName = resolveTableName(req);
 
   if (!tableName) {
-    return res.status(400).json({ error: 'Table name is required.' });
+    return next(); // No table involved, let the controller handle it
   }
 
   try {
+    // Check if this is an external data source — bypass local schema validation
+    let dataSource = await db('data_sources').where({ table_name: tableName }).first();
+    if (!dataSource) {
+      // If not found by table_name, try finding by name (for external sources where name might be used as identifier)
+      dataSource = await db('data_sources').where({ name: tableName }).first();
+    }
+    const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
+
+    if (isExternal) {
+      return next(); // External source: connection/validation handled by the controller
+    }
+
     const schema = await getIntrospectedSchema();
 
-    // 1. Validate table name
+    // 1. Validate table name (must exist in local SQLite)
     if (!schema[tableName]) {
-      return res.status(400).json({ error: `Table '${tableName}' does not exist or is not allowed.` });
+      return res.status(400).json({ error: `Tabla '${tableName}' no existe o no está permitida.` });
     }
 
     const allowedColumns = schema[tableName].map(col => col.name);
+    const { columns, aggregations, groupBy, filters, where } = req.body;
 
     // 2. Validate requested columns
     if (columns && Array.isArray(columns)) {
       for (const column of columns) {
         if (!allowedColumns.includes(column)) {
-          return res.status(400).json({ error: `Columna '${column}' no permitida para la tabla '${tableName}'.` });
+          return res.status(400).json({ error: `Columna '${column}' no permitida para '${tableName}'.` });
         }
       }
     }
@@ -88,9 +120,9 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
 
     // 4. Validate groupBy columns
     if (groupBy && Array.isArray(groupBy)) {
-      for (const column of groupBy) {
-        if (!allowedColumns.includes(column)) {
-          return res.status(400).json({ error: `Columna '${column}' no permitida para GROUP BY.` });
+      for (const col of groupBy) {
+        if (!allowedColumns.includes(col)) {
+          return res.status(400).json({ error: `Columna '${col}' no permitida para GROUP BY.` });
         }
       }
     }
@@ -104,24 +136,23 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
           return res.status(400).json({ error: `Columna '${column}' no permitida para filtro.` });
         }
         if (!operator || !validOperators.includes(operator.toUpperCase())) {
-          return res.status(400).json({ error: `Operador '${operator}' no válido para filtro.` });
+          return res.status(400).json({ error: `Operador '${operator}' no válido.` });
         }
       }
     }
 
-    // 6. Validate columns in WHERE clause (assuming simple object for now) - this is for the legacy getData endpoint
+    // 6. Validate legacy WHERE clause (simple object)
     if (where && typeof where === 'object') {
       for (const key in where) {
         if (!allowedColumns.includes(key)) {
-          return res.status(400).json({ error: `Columna '${key}' en WHERE clause no permitida.` });
+          return res.status(400).json({ error: `Columna '${key}' en WHERE no permitida.` });
         }
       }
     }
 
-    // If all checks pass, proceed to the next middleware/route handler
     next();
   } catch (error) {
-    console.error('Error in Query Guard middleware:', error);
-    return res.status(500).json({ error: 'Internal server error during query validation.' });
+    console.error('[queryGuard] Error:', error);
+    return res.status(500).json({ error: 'Error interno durante la validación de la consulta.' });
   }
 };

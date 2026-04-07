@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import db from '../services/db.service.js';
 import fs from 'fs';
 import path from 'path';
-import { getIntrospectedSchema } from '../middleware/queryGuard.middleware.js'; // Import the schema introspector
+import { getIntrospectedSchema, clearSchemaCache } from '../middleware/queryGuard.middleware.js'; // Import the schema introspector
+import { Knex } from 'knex';
+import knex from 'knex';
 
 const CONFIG_PATH = path.join(process.cwd(), 'dashboard_config.json');
 
@@ -42,7 +44,7 @@ export const deleteTable = async (req: Request, res: Response) => {
     await db.schema.dropTableIfExists(table); // Use dropTableIfExists for idempotency
 
     // Clear the cached schema so it's re-introspected next time
-    (getIntrospectedSchema as any).clearCache();
+    clearSchemaCache();
     res.json({ message: `Fuente de datos '${table}' eliminada correctamente.` });
   } catch (err: any) {
     console.error('deleteTable error:', err);
@@ -55,19 +57,49 @@ export const getSchema = async (req: Request, res: Response) => {
   const { table } = req.params;
 
   try {
-    const introspectedSchema = await getIntrospectedSchema();
+    const dataSource = await db('data_sources').where({ table_name: table }).first();
+    const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
 
-    // Validate table name against introspected schema
-    if (!introspectedSchema[table]) {
-      return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
-    }
+    let schema: Record<string, string> = {};
 
-    // Retrieve schema directly from introspected data
-    const info = introspectedSchema[table];
-    const schema: Record<string, string> = {};
-    for (const col of info) {
-      schema[col.name] = col.type;
+    if (isExternal) {
+      const conn = JSON.parse(dataSource.connection_details);
+      const externalDb = knex({
+        client: conn.type === 'mysql' ? 'mysql2' : (conn.type === 'pg' ? 'pg' : 'sqlite3'),
+        connection: conn.type === 'sqlite' ? { filename: conn.database } : {
+          host: conn.host,
+          port: conn.port,
+          user: conn.user,
+          password: conn.password,
+          database: conn.database,
+        },
+        useNullAsDefault: conn.type === 'sqlite',
+      });
+
+      try {
+        // A minimal approach for MVP: query 1 row and infer columns, or use columnInfo()
+        const columnsInfo = await externalDb(table).columnInfo();
+        for (const colName in columnsInfo) {
+           schema[colName] = columnsInfo[colName].type;
+        }
+      } finally {
+        await externalDb.destroy();
+      }
+    } else {
+      const introspectedSchema = await getIntrospectedSchema();
+
+      // Validate table name against introspected schema
+      if (!introspectedSchema[table]) {
+        return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
+      }
+
+      // Retrieve schema directly from introspected data
+      const info = introspectedSchema[table];
+      for (const col of info) {
+        schema[col.name] = col.type;
+      }
     }
+    
     res.json(schema);
   } catch (err: any) {
     console.error('getSchema error:', err);
@@ -85,21 +117,47 @@ export const queryData = async (req: Request, res: Response) => {
   }
 
   try {
-    const schema = await getIntrospectedSchema();
+    const dataSource = await db('data_sources').where({ table_name: table }).first();
+    const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
 
-    // Validate table name
-    if (!schema[table]) {
-      return res.status(400).json({ error: `Table '${table}' does not exist or is not allowed.` });
+    let queryDb = db;
+    let externalDb = null;
+    let actualTableName = table;
+
+    if (isExternal) {
+      const conn = JSON.parse(dataSource.connection_details);
+      externalDb = knex({
+        client: conn.type === 'mysql' ? 'mysql2' : (conn.type === 'pg' ? 'pg' : 'sqlite3'),
+        connection: conn.type === 'sqlite' ? { filename: conn.database } : {
+          host: conn.host,
+          port: conn.port,
+          user: conn.user,
+          password: conn.password,
+          database: conn.database,
+        },
+        useNullAsDefault: conn.type === 'sqlite',
+      });
+      queryDb = externalDb;
+      // actualTableName = dataSource.name; // MVP approach: source name = table name
     }
-    const allowedColumns = schema[table].map(col => col.name);
 
-    let query = db(table); // Knex will escape the table name
+    const schema = await getIntrospectedSchema();
+    let allowedColumns: string[] = [];
+
+    if (!isExternal) {
+      if (!schema[table]) {
+        return res.status(400).json({ error: `Table '${table}' does not exist or is not allowed.` });
+      }
+      allowedColumns = schema[table].map(col => col.name);
+    }
+
+    let query = queryDb(actualTableName); // Knex will escape the table name
 
     // Build SELECT clause
     const selectCols: any[] = [];
     if (columns?.length) {
       for (const col of columns) { // Validate columns
-        if (!allowedColumns.includes(col)) {
+        if (!isExternal && !allowedColumns.includes(col)) {
           return res.status(400).json({ error: `Columna '${col}' no permitida.` });
         }
         selectCols.push(col);
@@ -109,14 +167,14 @@ export const queryData = async (req: Request, res: Response) => {
       for (const agg of aggregations) {
         const { column, func, alias } = agg; // func is now validated
         const validFuncs = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
-        if (!column || !allowedColumns.includes(column)) { // Validate column for aggregation
+        if (!isExternal && (!column || !allowedColumns.includes(column))) { // Validate column for aggregation
           return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
         }
         // Whitelist aggregation function
         if (!validFuncs.includes(func?.toUpperCase())) {
           return res.status(400).json({ error: `Función de agregación '${func}' no válida.` });
         }
-        selectCols.push(db.raw(`${func.toUpperCase()}("${column}") as "${alias || column}"`));
+        selectCols.push(queryDb.raw(`${func.toUpperCase()}("${column}") as "${alias || column}"`));
       }
     }
     if (selectCols.length) {
@@ -128,7 +186,7 @@ export const queryData = async (req: Request, res: Response) => {
     // GROUP BY
     if (groupBy?.length) {
       for (const col of groupBy) { // Validate group by columns
-        if (!allowedColumns.includes(col)) {
+        if (!isExternal && !allowedColumns.includes(col)) {
           return res.status(400).json({ error: `Columna '${col}' no permitida para GROUP BY.` });
         }
       }
@@ -140,7 +198,7 @@ export const queryData = async (req: Request, res: Response) => {
       for (const f of filters) {
         const { column: col, operator, value } = f; // operator is now validated
         const validOperators = ['=', '>', '<', 'LIKE', '!=', '>=', '<=']; // Whitelist operators
-        if (!col || !allowedColumns.includes(col)) { // Validate column for filter
+        if (!isExternal && (!col || !allowedColumns.includes(col))) { // Validate column for filter
           return res.status(400).json({ error: `Columna '${col}' no permitida para filtro.` });
         }
         if (!operator || !validOperators.includes(operator.toUpperCase())) {
@@ -157,8 +215,14 @@ export const queryData = async (req: Request, res: Response) => {
     // Cap results for safety
     query = query.limit(1000);
 
-    const result = await query;
-    res.json(result);
+    try {
+      const result = await query;
+      res.json(result);
+    } finally {
+      if (externalDb) {
+        await externalDb.destroy();
+      }
+    }
   } catch (err: any) {
     console.error('queryData error:', err);
     res.status(500).json({ error: `Error en la consulta: ${err.message}` });
