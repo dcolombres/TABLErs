@@ -28,7 +28,7 @@ export const deleteTable = async (req: Request, res: Response) => {
     const schema = await getIntrospectedSchema();
 
     // Prevent dropping protected tables if any
-    const protectedTables = ['knex_migrations', 'knex_migrations_lock'];
+    const protectedTables = ['knex_migrations', 'knex_migrations_lock', 'data_sources'];
     if (table.startsWith('sqlite_') || protectedTables.includes(table)) {
       return res.status(403).json({ error: 'Cannot drop system or protected tables.' });
     }

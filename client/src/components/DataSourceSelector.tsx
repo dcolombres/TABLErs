@@ -22,7 +22,7 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
       const res = await api.get('/tables');
       // Filter out internal Knex.js migration tables
       const filteredTables = res.data.filter((table: string) =>
-        table !== 'knex_migrations' && table !== 'knex_migrations_lock'
+        table !== 'knex_migrations' && table !== 'knex_migrations_lock' && table !== 'data_sources'
       );
       setTables(filteredTables);
     } catch (e) {
