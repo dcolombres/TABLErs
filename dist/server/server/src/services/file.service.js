@@ -1,32 +1,28 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.upload = void 0;
-exports.processSqlDump = processSqlDump;
-exports.processCsvExcel = processCsvExcel;
-const multer_1 = __importDefault(require("multer"));
-const path_1 = __importDefault(require("path"));
-const promises_1 = __importDefault(require("fs/promises"));
-const fs_1 = __importDefault(require("fs"));
-const readline_1 = __importDefault(require("readline"));
-const crypto_1 = __importDefault(require("crypto"));
-const csv_parser_1 = __importDefault(require("csv-parser"));
-const db_service_1 = __importDefault(require("./db.service"));
-const uploadDir = path_1.default.resolve(__dirname, '../../uploads');
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
+import fsStream from 'fs';
+import readline from 'readline';
+import crypto from 'crypto';
+import csv from 'csv-parser';
+import db from './db.service.js';
+import * as XLSX from 'xlsx';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadDir = path.resolve(__dirname, '../../uploads');
 // Multer storage configuration
-const storage = multer_1.default.diskStorage({
+const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
 // Multer upload instance
-exports.upload = (0, multer_1.default)({
+export const upload = multer({
     storage: storage,
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB limit
     fileFilter: (req, file, cb) => {
@@ -50,8 +46,8 @@ exports.upload = (0, multer_1.default)({
  * @param filePath Path to the uploaded SQL file.
  * @returns The name of the newly created table.
  */
-async function processSqlDump(filePath) {
-    let fileContent = await promises_1.default.readFile(filePath, 'utf-8');
+export async function processSqlDump(filePath) {
+    let fileContent = await fs.readFile(filePath, 'utf-8');
     // 1. Limpieza inicial pesada: remover comentarios y sintaxis exclusiva
     fileContent = fileContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remover /* ... */ y /*! ... */
     fileContent = fileContent.replace(/--.*$/gm, ''); // Remover comentarios de línea --
@@ -59,10 +55,10 @@ async function processSqlDump(filePath) {
     fileContent = fileContent.replace(/USE .*?;/gi, ''); // Remover directivas USE
     const statements = fileContent.split(';');
     // Prefijo único para evitar colisiones si suben el archivo varias veces
-    const uploadPrefix = `imp_${crypto_1.default.randomBytes(3).toString('hex')}_`;
+    const uploadPrefix = `imp_${crypto.randomBytes(3).toString('hex')}_`;
     const tableMap = new Map(); // original -> new
     // Usar transacción para rendimiento y seguridad en bloque
-    await db_service_1.default.transaction(async (trx) => {
+    await db.transaction(async (trx) => {
         for (let statement of statements) {
             statement = statement.trim();
             if (!statement)
@@ -149,19 +145,19 @@ async function processSqlDump(filePath) {
             }
         }
     });
-    await promises_1.default.unlink(filePath).catch(() => { }); // Limpiar archivo residual
+    await fs.unlink(filePath).catch(() => { }); // Limpiar archivo residual
     return Array.from(tableMap.values()).join(', '); // Retornamos los nombres creados
 }
 /**
  * Real CSV import handling
  */
-async function processCsvExcel(filePath) {
-    const ext = path_1.default.extname(filePath).toLowerCase();
+export async function processCsvExcel(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
     if (ext === '.csv') {
         // Detect separator by sniffing the first line safely without loading the whole file
         const getSeparator = async () => {
-            const fileStream = fs_1.default.createReadStream(filePath);
-            const rl = readline_1.default.createInterface({ input: fileStream, crlfDelay: Infinity });
+            const fileStream = fsStream.createReadStream(filePath);
+            const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
             for await (const line of rl) {
                 rl.close();
                 fileStream.destroy();
@@ -173,9 +169,9 @@ async function processCsvExcel(filePath) {
         return new Promise((resolve, reject) => {
             const results = [];
             let headers = [];
-            const tableName = `imp_${crypto_1.default.randomBytes(3).toString('hex')}_csv`;
-            fs_1.default.createReadStream(filePath)
-                .pipe((0, csv_parser_1.default)({
+            const tableName = `imp_${crypto.randomBytes(3).toString('hex')}_csv`;
+            fsStream.createReadStream(filePath)
+                .pipe(csv({
                 separator: separator,
                 mapHeaders: ({ header, index }) => {
                     let h = header.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
@@ -193,7 +189,7 @@ async function processCsvExcel(filePath) {
                     return;
                 }
                 try {
-                    await db_service_1.default.transaction(async (trx) => {
+                    await db.transaction(async (trx) => {
                         // Crear tabla asumiendo todo TEXT, el tipado se maneja en el frontend/ECharts
                         const colDefs = headers.map(h => `"${h}" TEXT`).join(', ');
                         await trx.raw(`CREATE TABLE "${tableName}" (${colDefs})`);
@@ -209,7 +205,7 @@ async function processCsvExcel(filePath) {
                             await trx(tableName).insert(mappedChunk);
                         }
                     });
-                    await promises_1.default.unlink(filePath).catch(() => { });
+                    await fs.unlink(filePath).catch(() => { });
                     resolve(tableName);
                 }
                 catch (e) {
@@ -219,9 +215,63 @@ async function processCsvExcel(filePath) {
                 .on('error', (err) => reject(err));
         });
     }
+    else if (ext === '.xlsx' || ext === '.xls') {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const workbook = XLSX.readFile(filePath);
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Get data as array of arrays
+                if (jsonData.length === 0) {
+                    await fs.unlink(filePath).catch(() => { });
+                    return reject(new Error("El archivo Excel está vacío o no contiene datos en la primera hoja."));
+                }
+                // Assume first row is headers
+                let headers = jsonData[0].map((h) => String(h).trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase());
+                // Ensure headers are unique and not empty
+                const seenHeaders = new Set();
+                headers = headers.map((h, index) => {
+                    if (!h)
+                        return `col_${index}`;
+                    let uniqueH = h;
+                    let counter = 1;
+                    while (seenHeaders.has(uniqueH)) {
+                        uniqueH = `${h}_${counter++}`;
+                    }
+                    seenHeaders.add(uniqueH);
+                    return uniqueH;
+                });
+                const dataRows = jsonData.slice(1); // Actual data starts from the second row
+                const tableName = `imp_${crypto.randomBytes(3).toString('hex')}_excel`;
+                await db.transaction(async (trx) => {
+                    const colDefs = headers.map(h => `"${h}" TEXT`).join(', ');
+                    await trx.raw(`CREATE TABLE "${tableName}" (${colDefs})`);
+                    const chunkSize = 100;
+                    for (let i = 0; i < dataRows.length; i += chunkSize) {
+                        const chunk = dataRows.slice(i, i + chunkSize);
+                        const mappedChunk = chunk.map(row => {
+                            const obj = {};
+                            headers.forEach((h, index) => {
+                                obj[h] = row[index] !== undefined ? String(row[index]) : null;
+                            });
+                            return obj;
+                        });
+                        if (mappedChunk.length > 0) {
+                            await trx(tableName).insert(mappedChunk);
+                        }
+                    }
+                });
+                await fs.unlink(filePath).catch(() => { });
+                resolve(tableName);
+            }
+            catch (e) {
+                await fs.unlink(filePath).catch(() => { });
+                reject(new Error(`Error al procesar el archivo Excel: ${e.message}`));
+            }
+        });
+    }
     else {
-        // Not implemented yet: xlsx
-        await promises_1.default.unlink(filePath).catch(() => { });
-        throw new Error('Solo se soporta .SQL y .CSV actualmente. Exporta tu Excel a CSV (delimitado por comas) e intenta de nuevo.');
+        await fs.unlink(filePath).catch(() => { });
+        throw new Error('Tipo de archivo no soportado. Usar SQL, CSV o Excel.');
     }
 }

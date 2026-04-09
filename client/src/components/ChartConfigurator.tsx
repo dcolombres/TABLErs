@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
+import api from '../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Save, BarChart2, TrendingUp, PieChart,
   Table as TableIcon, Plus, Trash2, Filter,
-  ChevronDown, Settings
+  ChevronDown, Settings, Sparkles, Wand2
 } from 'lucide-react';
 import { ChartConfig } from '../types';
 
 interface Props {
   config: ChartConfig;
+  dashboardId?: string;
   onSave: (config: ChartConfig) => void;
   onClose: () => void;
   onDelete?: (id: string) => void;
@@ -25,21 +25,58 @@ const CHART_TYPES = [
 
 const AGGREGATIONS = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
 
-const ChartConfigurator: React.FC<Props> = ({ config, onSave, onClose, onDelete }) => {
+const ChartConfigurator: React.FC<Props> = ({ config, dashboardId, onSave, onClose, onDelete }) => {
   const [editedConfig, setEditedConfig] = useState<ChartConfig>({ ...config });
   const [tables, setTables] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<ChartConfig[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [availableSources, setAvailableSources] = useState<any[]>([]);
 
   useEffect(() => {
-    axios.get('/tables').then(r => setTables(r.data)).catch(console.error);
-  }, []);
+    if (dashboardId) {
+      api.get(`/dashboards/${dashboardId}/data-sources`)
+        .then(r => {
+          setAvailableSources(r.data);
+          const tableNames = r.data.map((ds: any) => ds.table_name).filter(Boolean);
+          setTables(tableNames);
+        })
+        .catch(console.error);
+    } else {
+      api.get('/tables').then(r => setTables(r.data)).catch(console.error);
+    }
+  }, [dashboardId]);
 
   useEffect(() => {
-    if (!editedConfig.dataSource.table) return;
-    axios.get(`/schema/${editedConfig.dataSource.table}`)
+    if (!editedConfig.dataSource.table) {
+      setSuggestions([]);
+      return;
+    }
+    
+    api.get(`/schema/${editedConfig.dataSource.table}`)
       .then(r => setColumns(Object.keys(r.data)))
       .catch(console.error);
-  }, [editedConfig.dataSource.table]);
+
+    // Fetch suggestions
+    const source = availableSources.find(s => s.table_name === editedConfig.dataSource.table);
+    if (source || editedConfig.dataSource.table) {
+      setLoadingSuggestions(true);
+      const url = source 
+        ? `/data-sources/${source.id}/suggestions`
+        : `/tables/${editedConfig.dataSource.table}/suggestions`;
+        
+      api.get(url)
+        .then(r => {
+          console.log('Suggestions received:', r.data);
+          setSuggestions(r.data);
+        })
+        .catch(err => {
+          console.error('Error fetching suggestions:', err);
+          setSuggestions([]);
+        })
+        .finally(() => setLoadingSuggestions(false));
+    }
+  }, [editedConfig.dataSource.table, availableSources]);
 
   const updateDS = (patch: Partial<typeof editedConfig.dataSource>) =>
     setEditedConfig(c => ({ ...c, dataSource: { ...c.dataSource, ...patch } }));
@@ -59,6 +96,18 @@ const ChartConfigurator: React.FC<Props> = ({ config, onSave, onClose, onDelete 
       filters[i] = { ...filters[i], ...patch };
       return { ...c, filters };
     });
+
+  const applySuggestion = (suggestion: ChartConfig) => {
+    setEditedConfig(prev => ({
+      ...prev,
+      title: suggestion.title,
+      type: suggestion.type,
+      dataSource: {
+        ...prev.dataSource,
+        ...suggestion.dataSource
+      }
+    }));
+  };
 
   return (
     <motion.div
@@ -128,6 +177,60 @@ const ChartConfigurator: React.FC<Props> = ({ config, onSave, onClose, onDelete 
             placeholder="Ej: Ventas por mes"
           />
         </section>
+
+        {/* Smart Suggestions */}
+        <AnimatePresence>
+          {suggestions.length > 0 && (
+            <motion.section
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="space-y-3 overflow-hidden"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-amber-400" />
+                <p className="configurator-section-title" style={{ marginBottom: 0 }}>Sugerencias Mágicas</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {suggestions.map((s, idx) => (
+                  <button
+                    key={s.id || idx}
+                    onClick={() => applySuggestion(s)}
+                    className="flex items-start gap-3 p-3 rounded-xl transition-all text-left group"
+                    style={{
+                      background: 'var(--accent-subtle2)',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'var(--accent-subtle)';
+                      e.currentTarget.style.borderColor = 'var(--accent-from)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'var(--accent-subtle2)';
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    }}
+                  >
+                    <div 
+                      className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                      style={{ background: 'var(--accent-subtle)', border: '1px solid var(--accent-subtle)' }}
+                    >
+                      <Wand2 size={15} style={{ color: 'var(--accent-from)' }} />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)', margin: 0 }}>
+                        {s.title}
+                      </p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-from)', opacity: 0.8, marginTop: 2 }}>
+                        {s.type.toUpperCase()} · POR {s.dataSource.xAxis} 
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* Chart type */}
         <section className="space-y-3">

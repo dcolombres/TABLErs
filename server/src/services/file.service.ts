@@ -1,11 +1,17 @@
 import multer from 'multer';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import fsStream from 'fs';
 import readline from 'readline';
 import crypto from 'crypto';
 import csv from 'csv-parser';
-import db from './db.service';
+import db from './db.service.js';
+import * as XLSX from 'xlsx';
+import { Knex } from 'knex'; // Added Knex import
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const uploadDir = path.resolve(__dirname, '../../uploads');
 
@@ -54,6 +60,11 @@ export async function processSqlDump(filePath: string): Promise<string> {
   fileContent = fileContent.replace(/--.*$/gm, ''); // Remover comentarios de línea --
   fileContent = fileContent.replace(/CREATE DATABASE.*?;/gi, ''); // Remover crear DB
   fileContent = fileContent.replace(/USE .*?;/gi, ''); // Remover directivas USE
+  fileContent = fileContent.replace(/SET .*?;/gi, ''); // Remover SET @variable o SET time_zone
+  
+  // 2. Adaptar escapes de comillas simples: MySQL (\') -> SQLite ('')
+  // IMPORTANTE: Esto debe hacerse ANTES de intentar procesar inserts.
+  fileContent = fileContent.replace(/\\'/g, "''");
 
   const statements = fileContent.split(';');
 
@@ -62,7 +73,7 @@ export async function processSqlDump(filePath: string): Promise<string> {
   const tableMap = new Map<string, string>(); // original -> new
 
   // Usar transacción para rendimiento y seguridad en bloque
-  await db.transaction(async trx => {
+  await db.transaction(async (trx: Knex.Transaction) => {
     for (let statement of statements) {
       statement = statement.trim();
       if (!statement) continue;
@@ -90,12 +101,24 @@ export async function processSqlDump(filePath: string): Promise<string> {
         // 3. Tipos numéricos con tamaño ej. bigint(20), int(11) -> INTEGER
         statement = statement.replace(/\b(bigint|tinyint|smallint|mediumint|int)\([^)]+\)/gi, 'INTEGER');
         
-        // 4. Remover ENGINE, CHARSET, COLLATE y syntax de KEY (índices inline de MySQL que SQLite rechaza)
+        // 4. Remover ENGINE, CHARSET, COLLATE y syntax de JSON_VALID/CHECK
         statement = statement.replace(/ENGINE\s*=\s*[A-Za-z0-9_]+/gi, '');
         statement = statement.replace(/DEFAULT CHARSET\s*=\s*[A-Za-z0-9_]+/gi, '');
         statement = statement.replace(/CHARSET\s*=\s*[A-Za-z0-9_]+/gi, '');
+        statement = statement.replace(/CHARACTER SET\s*=[A-Za-z0-9_]+/gi, '');
         statement = statement.replace(/COLLATE\s*=\s*[A-Za-z0-9_]+/gi, '');
-        statement = statement.replace(/,\s*KEY\s+["`']?[A-Za-z0-9_]+["`']?\s*\([^)]+\)/gi, '');
+        statement = statement.replace(/CHECK\s*\(json_valid\(.*?\)\)/gi, '');
+        
+        // Remover líneas enteras de KEY o UNIQUE KEY que terminan en coma o son la última línea
+        // Ejemplo: , UNIQUE KEY `email_unique` (`email`)
+        statement = statement.replace(/,\s*(UNIQUE\s+)?KEY\s+[`"']?[A-Za-z0-9_]+[`"']?\s*\([^)]+\)/gi, '');
+        // Ejemplo sin coma (última línea antes del paréntesis de cierre)
+        statement = statement.replace(/\s*(UNIQUE\s+)?KEY\s+[`"']?[A-Za-z0-9_]+[`"']?\s*\([^)]+\)/gi, '');
+
+        // Remover CONSTRAINT ... FOREIGN KEY si es necesario (mejor dejar que SQLite falle o manejarlas)
+        // Pero a veces MySQL añade CONSTRAINT `fk_name` ...
+        statement = statement.replace(/CONSTRAINT\s+[`"']?[A-Za-z0-9_]+[`"']?\s+FOREIGN\s+KEY/gi, 'FOREIGN KEY');
+
         
         // Registrar nombre original e inyectar el nuevo con prefijo (Soporta IF NOT EXISTS)
         const match = statement.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`']?([a-zA-Z0-9_]+)["`']?/i);
@@ -205,7 +228,7 @@ export async function processCsvExcel(filePath: string): Promise<string> {
            }
            
            try {
-             await db.transaction(async trx => {
+             await db.transaction(async (trx: Knex.Transaction) => {
                // Crear tabla asumiendo todo TEXT, el tipado se maneja en el frontend/ECharts
                const colDefs = headers.map(h => `"${h}" TEXT`).join(', ');
                await trx.raw(`CREATE TABLE "${tableName}" (${colDefs})`);
@@ -230,9 +253,70 @@ export async function processCsvExcel(filePath: string): Promise<string> {
         })
         .on('error', (err) => reject(err));
     });
+  } else if (ext === '.xlsx' || ext === '.xls') {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const workbook = XLSX.readFile(filePath);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); // Get data as array of arrays
+
+        if (jsonData.length === 0) {
+          await fs.unlink(filePath).catch(() => {});
+          return reject(new Error("El archivo Excel está vacío o no contiene datos en la primera hoja."));
+        }
+
+        // Assume first row is headers
+        let headers: string[] = jsonData[0].map((h: string | number) =>
+          String(h).trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
+        );
+        // Ensure headers are unique and not empty
+        const seenHeaders = new Set<string>();
+        headers = headers.map((h, index) => {
+          if (!h) return `col_${index}`;
+          let uniqueH = h;
+          let counter = 1;
+          while (seenHeaders.has(uniqueH)) {
+            uniqueH = `${h}_${counter++}`;
+          }
+          seenHeaders.add(uniqueH);
+          return uniqueH;
+        });
+
+        const dataRows = jsonData.slice(1); // Actual data starts from the second row
+
+        const tableName = `imp_${crypto.randomBytes(3).toString('hex')}_excel`;
+
+        await db.transaction(async trx => {
+          const colDefs = headers.map(h => `"${h}" TEXT`).join(', ');
+          await trx.raw(`CREATE TABLE "${tableName}" (${colDefs})`);
+
+          const chunkSize = 100;
+          for (let i = 0; i < dataRows.length; i += chunkSize) {
+            const chunk = dataRows.slice(i, i + chunkSize);
+            const mappedChunk = chunk.map(row => {
+              const obj: any = {};
+              headers.forEach((h, index) => {
+                obj[h] = row[index] !== undefined ? String(row[index]) : null;
+              });
+              return obj;
+            });
+            if (mappedChunk.length > 0) {
+              await trx(tableName).insert(mappedChunk);
+            }
+          }
+        });
+
+        await fs.unlink(filePath).catch(() => {});
+        resolve(tableName);
+
+      } catch (e: any) {
+        await fs.unlink(filePath).catch(() => {});
+        reject(new Error(`Error al procesar el archivo Excel: ${e.message}`));
+      }
+    });
   } else {
-    // Not implemented yet: xlsx
     await fs.unlink(filePath).catch(() => {});
-    throw new Error('Solo se soporta .SQL y .CSV actualmente. Exporta tu Excel a CSV (delimitado por comas) e intenta de nuevo.');
+    throw new Error('Tipo de archivo no soportado. Usar SQL, CSV o Excel.');
   }
 }

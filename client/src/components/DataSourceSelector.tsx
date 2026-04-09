@@ -15,7 +15,7 @@ interface DataSourceSelectorProps {
 const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, onConnected }) => {
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [selectedDataSourceId, setSelectedDataSourceId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ type: 'mysql', host: '', user: '', password: '', database: '' });
+  const [formData, setFormData] = useState({ name: '', type: 'mysql', host: '', user: '', password: '', database: '', dashboardId: '1' });
   const [loading, setLoading] = useState(false);
   const [gdriveUrl, setGdriveUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'db' | 'gdrive'>('file');
@@ -222,7 +222,24 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
       {activeTab === 'db' && (
         <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {(['host', 'user', 'password', 'database'] as const).map(field => (
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                Nombre de la fuente
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                required
+                placeholder="Ej: Prod DB"
+                style={{
+                  width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13, boxSizing: 'border-box',
+                  background: 'var(--bg-overlay)', border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)', outline: 'none',
+                }}
+              />
+            </div>
+            {(['type', 'host', 'user', 'password', 'database'] as const).map(field => (
               <div key={field}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'capitalize' }}>
                   {field}
@@ -230,6 +247,7 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({ onSelectTable, 
                 <input
                   type={field === 'password' ? 'password' : 'text'}
                   value={formData[field]}
+                  required={field !== 'password'} // En SQLite puede no haber password
                   onChange={e => setFormData(f => ({ ...f, [field]: e.target.value }))}
                   style={{
                     width: '100%', padding: '9px 12px', borderRadius: 8, fontSize: 13, boxSizing: 'border-box',

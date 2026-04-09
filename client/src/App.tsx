@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
+import api from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, Plus, RefreshCw,
@@ -11,7 +10,10 @@ import {
 import DataSourceSelector from './components/DataSourceSelector';
 import ChartRenderer from './components/ChartRenderer';
 import ChartConfigurator from './components/ChartConfigurator';
+import DashboardManager from './Dashboard';
 import { DashboardConfig, ChartConfig } from './types';
+
+type AppView = 'landing' | 'dashboards' | 'charts';
 
 /* ── Feature bullets for landing ── */
 const FEATURES = [
@@ -21,7 +23,7 @@ const FEATURES = [
 ];
 
 function App() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [view, setView] = useState<AppView>('landing');
   const [dashboard, setDashboard] = useState<DashboardConfig>({
     title: 'Análisis sin título',
     charts: []
@@ -33,29 +35,19 @@ function App() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      const r = await axios.get('/tables');
-      setTables(r.data);
-
-      const r2 = await axios.get('/dashboard/default');
-      if (r2.data) {
-        setDashboardConfig(r2.data);
-      } 
+      try {
+        const r2 = await api.get('/dashboard/default');
+        if (r2.data) {
+          setDashboard(r2.data);
+        }
+      } catch {
+        // No saved dashboard yet, start with empty
+      }
     };
     fetchInitialData();
   }, []);
 
-  const handleSaveDashboard = async () => {
-    try {
-      setSaving(true);
-      await axios.post('/dashboard/save', dashboardConfig);
-      alert('Dashboard saved successfully!');
-    } catch (error) {
-      console.error('Error saving dashboard:', error);
-      alert('Failed to save dashboard.');
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   const handleAddChart = () => {
     if (dashboard.charts.length >= 6) return;
@@ -94,7 +86,7 @@ function App() {
 
   const saveDashboard = async (config: DashboardConfig) => {
     setIsSaving(true);
-    try { await axios.post('/api/dashboard/save', config); }
+    try { await api.post('/dashboard/save', config); }
     catch (e) { console.error(e); }
     finally { setTimeout(() => setIsSaving(false), 800); }
   };
@@ -106,9 +98,51 @@ function App() {
   };
 
   /* ════════════════════════════════
+     DASHBOARDS — gestor de tableros
+  ════════════════════════════════ */
+  if (view === 'dashboards') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
+        {/* Top bar */}
+        <header style={{
+          height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 32px', background: 'var(--bg-surface)',
+          borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 30,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="logo-mark" style={{ width: 32, height: 32, borderRadius: 9 }}>
+              <BarChart3 size={15} color="white" />
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              Tablers<span style={{ color: 'var(--accent-from)' }}>.</span>
+            </span>
+          </div>
+          <button
+            onClick={() => setView('landing')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'var(--bg-overlay)', border: '1px solid var(--border-subtle)',
+              borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              color: 'var(--text-secondary)', cursor: 'pointer',
+            }}
+          >
+            <LogOut size={13} /> Conectar nueva fuente
+          </button>
+        </header>
+        <main style={{ padding: '36px 40px', maxWidth: 1100, margin: '0 auto' }}>
+          <DashboardManager onOpenDashboard={(item) => {
+            setDashboard(prev => ({ ...prev, title: item.name, id: String(item.id) }));
+            setView('charts');
+          }} />
+        </main>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
      LANDING — split layout
   ════════════════════════════════ */
-  if (!isConnected) {
+  if (view === 'landing') {
     return (
       <div style={{
         minHeight: '100vh',
@@ -213,7 +247,7 @@ function App() {
             </p>
           </div>
 
-          <DataSourceSelector onConnected={() => setIsConnected(true)} />
+          <DataSourceSelector onConnected={() => setView('dashboards')} />
 
           {/* Trust badges */}
           <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
@@ -234,7 +268,7 @@ function App() {
   }
 
   /* ════════════════════════════════
-     DASHBOARD — sidebar + main
+     CHARTS — sidebar + main
   ════════════════════════════════ */
   const SIDEBAR_W = 220;
 
@@ -273,7 +307,19 @@ function App() {
           </div>
 
           <div
-            onClick={() => setIsConnected(false)}
+            onClick={() => setView('dashboards')}
+            className="btn-ghost"
+            style={{
+              justifyContent: 'flex-start', border: 'none',
+              padding: '9px 12px', borderRadius: 10, fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            <LayoutDashboard size={16} />
+            Mis Tableros
+          </div>
+          <div
+            onClick={() => setView('landing')}
             className="btn-ghost"
             style={{
               justifyContent: 'flex-start', border: 'none',
@@ -282,7 +328,7 @@ function App() {
             }}
           >
             <FileUp size={16} />
-            Fuente de Datos
+            Nueva fuente
           </div>
         </nav>
 
@@ -294,7 +340,7 @@ function App() {
           </div>
           <button
             id="btn-disconnect"
-            onClick={() => setIsConnected(false)}
+            onClick={() => setView('landing')}
             className="btn-ghost"
             style={{ width: '100%', justifyContent: 'flex-start', borderRadius: 8, fontSize: 12 }}
             title="Cambiar fuente de datos"
@@ -498,6 +544,7 @@ function App() {
             <ChartConfigurator
               key={editingChart.id}
               config={editingChart}
+              dashboardId={dashboard.id}
               onSave={handleSaveChart}
               onClose={() => setEditingChart(null)}
               onDelete={handleDeleteChart}

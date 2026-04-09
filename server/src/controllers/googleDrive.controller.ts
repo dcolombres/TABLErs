@@ -1,14 +1,19 @@
 import { Request, Response } from 'express';
-import { getSpreadsheetData, extractSpreadsheetId } from '../services/googleSheets.service';
-import db from '../services/db.service';
+import { getSpreadsheetData, extractSpreadsheetId } from '../services/googleSheets.service.js';
+import db from '../services/db.service.js';
 import { v4 as uuidv4 } from 'uuid';
+import { clearSchemaCache } from '../middleware/queryGuard.middleware.js';
 
 export const syncGoogleSheet = async (req: Request, res: Response) => {
   const { gdriveUrl } = req.body;
-  const googleApiKey = process.env.GOOGLE_API_KEY; // Get API key from environment variable
+  const googleApiKey = process.env.GOOGLE_API_KEY;
 
   if (!gdriveUrl) {
     return res.status(400).json({ error: 'Se requiere la URL de Google Sheets.' });
+  }
+
+  if (!googleApiKey) {
+    return res.status(500).json({ error: 'GOOGLE_API_KEY no configurada en el servidor.' });
   }
 
   try {
@@ -46,6 +51,18 @@ export const syncGoogleSheet = async (req: Request, res: Response) => {
     });
 
     await db(tableName).insert(formattedRows);
+
+    // Save metadata in data_sources
+    // Assuming dashboard_id is 1 as placeholder.
+    await db('data_sources').insert({
+      dashboard_id: '1',
+      name: `Google Sheet (${spreadsheetId.substring(0, 8)})`,
+      type: 'google_sheet',
+      table_name: tableName,
+      connection_details: JSON.stringify({ gdriveUrl, spreadsheetId }),
+    });
+
+    clearSchemaCache();
 
     const schema: Record<string, string> = {};
     headers.forEach(header => {

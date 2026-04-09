@@ -1,28 +1,27 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.queryGuardMiddleware = void 0;
-const db_service_1 = __importDefault(require("../services/db.service"));
+import db from '../services/db.service.js';
+import { Logger } from '../services/logger.js';
 let introspectedSchema = null;
+export function clearSchemaCache() {
+    introspectedSchema = null;
+}
 /**
- * Introspects the SQLite database to get all user-defined tables and their columns.
- * Caches the schema for performance.
+ * Introspects the local SQLite database to get all user-defined tables and their columns.
+ * Caches the schema for performance. Excludes internal/system tables.
  */
-async function getIntrospectedSchema() {
+export async function getIntrospectedSchema() {
     if (introspectedSchema) {
         return introspectedSchema;
     }
     const schema = {};
-    // Get all user tables (excluding sqlite_sequence and internal tables)
-    const tables = await (0, db_service_1.default)('sqlite_master')
+    const excluded = ['knex_migrations', 'knex_migrations_lock', 'data_sources', 'dashboards'];
+    const tables = await db('sqlite_master')
         .select('name')
         .where('type', 'table')
-        .whereNotLike('name', 'sqlite_%');
+        .where('name', 'not like', 'sqlite_%')
+        .whereNotIn('name', excluded);
     for (const table of tables) {
         const tableName = table.name;
-        const columnsInfo = await db_service_1.default.raw(`PRAGMA table_info(${tableName})`);
+        const columnsInfo = await db.raw(`PRAGMA table_info("${tableName}")`);
         schema[tableName] = columnsInfo.map((col) => ({
             name: col.name,
             type: col.type,
@@ -32,43 +31,106 @@ async function getIntrospectedSchema() {
     return schema;
 }
 /**
- * Middleware to validate dynamic queries from the frontend against the database schema.
- * Prevents SQL Injection by whitelisting table and column names.
+ * Resolves the target table name from the request.
+ * Priority: req.body.table > req.body.tableName > req.params.table > req.params.tableName
  */
-const queryGuardMiddleware = async (req, res, next) => {
-    const { tableName, columns, where } = req.body; // Assuming these are sent from frontend
+function resolveTableName(req) {
+    return (req.body?.table ||
+        req.body?.tableName ||
+        req.params?.table ||
+        req.params?.tableName);
+}
+/**
+ * Middleware to validate dynamic queries against the local SQLite schema.
+ * - For external DB sources (mysql, pg, sqlite type), bypasses local validation.
+ * - For local sources, whitelists table name + column names to prevent SQLi.
+ */
+export const queryGuardMiddleware = async (req, res, next) => {
+    const tableName = resolveTableName(req);
+    Logger.info(`[queryGuard] Validating request for table: ${tableName}`);
     if (!tableName) {
-        return res.status(400).json({ error: 'Table name is required.' });
+        return next(); // No table involved, let the controller handle it
     }
     try {
+        // Check if this is an external data source — bypass local schema validation
+        let dataSource = await db('data_sources').where({ table_name: tableName }).first();
+        if (!dataSource) {
+            // If not found by table_name, try finding by name (for external sources where name might be used as identifier)
+            dataSource = await db('data_sources').where({ name: tableName }).first();
+        }
+        const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
+        if (isExternal) {
+            return next(); // External source: connection/validation handled by the controller
+        }
         const schema = await getIntrospectedSchema();
-        // 1. Validate table name
+        // 1. Validate table name (must exist in local SQLite)
         if (!schema[tableName]) {
-            return res.status(400).json({ error: `Table '${tableName}' does not exist or is not allowed.` });
+            return res.status(400).json({ error: `Tabla '${tableName}' no existe o no está permitida.` });
         }
         const allowedColumns = schema[tableName].map(col => col.name);
+        const { columns, aggregations, groupBy, filters, where } = req.body;
         // 2. Validate requested columns
         if (columns && Array.isArray(columns)) {
-            for (const col of columns) {
-                if (!allowedColumns.includes(col)) {
-                    return res.status(400).json({ error: `Column '${col}' not allowed for table '${tableName}'.` });
+            for (const column of columns) {
+                if (!allowedColumns.includes(column)) {
+                    Logger.warn(`[queryGuard] Rejected column '${column}' for table '${tableName}'`);
+                    return res.status(400).json({
+                        error: `Columna '${column}' no permitida para '${tableName}'.`,
+                        details: `Las columnas permitidas son: ${allowedColumns.join(', ')}`
+                    });
                 }
             }
         }
-        // 3. Validate columns in WHERE clause (assuming simple object for now)
+        // 3. Validate aggregations
+        if (aggregations && Array.isArray(aggregations)) {
+            const validFuncs = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
+            for (const agg of aggregations) {
+                const { column, func } = agg;
+                if (!column || !allowedColumns.includes(column)) {
+                    Logger.warn(`[queryGuard] Rejected aggregation column '${column}' for table '${tableName}'`);
+                    return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
+                }
+                if (!func || !validFuncs.includes(func.toUpperCase())) {
+                    Logger.warn(`[queryGuard] Rejected aggregation function '${func}'`);
+                    return res.status(400).json({ error: `Función de agregación '${func}' no válida. Permitidas: ${validFuncs.join(', ')}` });
+                }
+            }
+        }
+        // 4. Validate groupBy columns
+        if (groupBy && Array.isArray(groupBy)) {
+            for (const col of groupBy) {
+                if (!allowedColumns.includes(col)) {
+                    return res.status(400).json({ error: `Columna '${col}' no permitida para GROUP BY.` });
+                }
+            }
+        }
+        // 5. Validate filters
+        if (filters && Array.isArray(filters)) {
+            const validOperators = ['=', '>', '<', 'LIKE', '!=', '>=', '<='];
+            for (const filter of filters) {
+                const { column, operator } = filter;
+                if (!column || !allowedColumns.includes(column)) {
+                    Logger.warn(`[queryGuard] Rejected filter column '${column}' for table '${tableName}'`);
+                    return res.status(400).json({ error: `Columna '${column}' no permitida para filtro.` });
+                }
+                if (!operator || !validOperators.includes(operator.toUpperCase())) {
+                    Logger.warn(`[queryGuard] Rejected filter operator '${operator}'`);
+                    return res.status(400).json({ error: `Operador '${operator}' no válido. Permitidos: ${validOperators.join(', ')}` });
+                }
+            }
+        }
+        // 6. Validate legacy WHERE clause (simple object)
         if (where && typeof where === 'object') {
             for (const key in where) {
                 if (!allowedColumns.includes(key)) {
-                    return res.status(400).json({ error: `Column '${key}' in WHERE clause not allowed for table '${tableName}'.` });
+                    return res.status(400).json({ error: `Columna '${key}' en WHERE no permitida.` });
                 }
             }
         }
-        // If all checks pass, proceed to the next middleware/route handler
         next();
     }
     catch (error) {
-        console.error('Error in Query Guard middleware:', error);
-        return res.status(500).json({ error: 'Internal server error during query validation.' });
+        Logger.error('[queryGuard] Error:', error);
+        return res.status(500).json({ error: 'Error interno durante la validación de la consulta.' });
     }
 };
-exports.queryGuardMiddleware = queryGuardMiddleware;

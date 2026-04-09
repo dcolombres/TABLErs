@@ -3,7 +3,7 @@
     "target": "es2021",
     "module": "NodeNext", // Use NodeNext for ES Module output compatible with Node.js
     "rootDir": ".",
-    "outDir": "./dist/server",
+    "outDir": "./server/dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,

@@ -4,7 +4,7 @@ import { upload, processSqlDump, processCsvExcel } from '../services/file.servic
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
-import knex from 'knex';
+import knex, { Knex } from 'knex'; // Added Knex import
 import db from '../services/db.service.js'; // Import the db instance
 import { clearSchemaCache } from '../middleware/queryGuard.middleware.js';
 

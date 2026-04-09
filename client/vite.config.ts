@@ -1,13 +1,14 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vitejs.dev/config/
-export default defineConfig({
-  base: '/Tablers/', // Set the base path for GitHub Pages deployment
+export default defineConfig(({ mode }) => ({
+  // Only use the nested base path if we are in production (GitHub Pages)
+  base: mode === 'production' ? '/Tablers/' : '/',
   plugins: [react()],
   server: {
+    host: '127.0.0.1',
     proxy: {
-      '/api': 'http://localhost:3001'
+      '/api': {
+        target: 'http://127.0.0.1:3002',
+        changeOrigin: true,
+      }
     }
   }
-})
+}))

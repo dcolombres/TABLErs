@@ -1,20 +1,41 @@
 import express from 'express';
-import { Request, Response } from 'express';
-import dataRoutes from './routes/data.routes'; // Import data routes
-import db from './services/db.service'; // Import db service to ensure it's initialized
+import cors from 'cors';
+import dataRoutes from './routes/data.routes.js';
+import { connectSource } from './controllers/upload.controller.js';
+import { dbReady } from './services/db.service.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
+
+// Configure CORS
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Allow both localhost variants
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Tablers Backend is running!');
-});
-
-// Register data routes
+// Routes
+app.post('/api/connect', connectSource);
 app.use('/api', dataRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+async function startServer() {
+  await dbReady; // Ensure DB is initialized and seeded
+  
+  const server = app.listen(Number(PORT), '127.0.0.1', () => {
+    console.log(`🚀 Server is running on port ${PORT} (127.0.0.1)`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use.`);
+    } else {
+      console.error(`❌ Server error:`, err);
+    }
+    process.exit(1);
+  });
+}
+
+startServer();

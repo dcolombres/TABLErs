@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import db from '../services/db.service.js';
+import { Logger } from '../services/logger.js';
 
 interface ColumnInfo {
   name: string;
@@ -68,6 +69,8 @@ function resolveTableName(req: Request): string | undefined {
 export const queryGuardMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const tableName = resolveTableName(req);
 
+  Logger.info(`[queryGuard] Validating request for table: ${tableName}`);
+
   if (!tableName) {
     return next(); // No table involved, let the controller handle it
   }
@@ -99,7 +102,11 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
     if (columns && Array.isArray(columns)) {
       for (const column of columns) {
         if (!allowedColumns.includes(column)) {
-          return res.status(400).json({ error: `Columna '${column}' no permitida para '${tableName}'.` });
+          Logger.warn(`[queryGuard] Rejected column '${column}' for table '${tableName}'`);
+          return res.status(400).json({ 
+            error: `Columna '${column}' no permitida para '${tableName}'.`,
+            details: `Las columnas permitidas son: ${allowedColumns.join(', ')}`
+          });
         }
       }
     }
@@ -110,10 +117,12 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
       for (const agg of aggregations) {
         const { column, func } = agg;
         if (!column || !allowedColumns.includes(column)) {
+          Logger.warn(`[queryGuard] Rejected aggregation column '${column}' for table '${tableName}'`);
           return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
         }
         if (!func || !validFuncs.includes(func.toUpperCase())) {
-          return res.status(400).json({ error: `Función de agregación '${func}' no válida.` });
+          Logger.warn(`[queryGuard] Rejected aggregation function '${func}'`);
+          return res.status(400).json({ error: `Función de agregación '${func}' no válida. Permitidas: ${validFuncs.join(', ')}` });
         }
       }
     }
@@ -133,10 +142,12 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
       for (const filter of filters) {
         const { column, operator } = filter;
         if (!column || !allowedColumns.includes(column)) {
+          Logger.warn(`[queryGuard] Rejected filter column '${column}' for table '${tableName}'`);
           return res.status(400).json({ error: `Columna '${column}' no permitida para filtro.` });
         }
         if (!operator || !validOperators.includes(operator.toUpperCase())) {
-          return res.status(400).json({ error: `Operador '${operator}' no válido.` });
+          Logger.warn(`[queryGuard] Rejected filter operator '${operator}'`);
+          return res.status(400).json({ error: `Operador '${operator}' no válido. Permitidos: ${validOperators.join(', ')}` });
         }
       }
     }
@@ -152,7 +163,7 @@ export const queryGuardMiddleware = async (req: Request, res: Response, next: Ne
 
     next();
   } catch (error) {
-    console.error('[queryGuard] Error:', error);
+    Logger.error('[queryGuard] Error:', error);
     return res.status(500).json({ error: 'Error interno durante la validación de la consulta.' });
   }
 };

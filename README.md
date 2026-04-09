@@ -4,12 +4,14 @@ Tablers es un generador de tableros de control "self-service" inspirado en Zoho 
 
 ## Características Core
 
+- **Gestión de Dashboards:**
+  - Creación, edición y eliminación de tableros.
+  - Configuración de hasta 6 gráficos por tablero.
 - **Conector de Datos Flexible:**
   - Carga de archivos: SQL Dumps (`.sql`), CSV y Excel (`.xlsx`).
   - Conexión directa: Soporta PostgreSQL y MySQL.
   - Almacenamiento local: Los archivos subidos se procesan automáticamente en una instancia de SQLite para consultas rápidas.
 - **Configuración Visual de Gráficos:**
-  - Hasta 6 gráficos por tablero.
   - Tipos: Barras, Líneas, Pastel y Tablas (Heatmap).
   - Agregaciones SQL dinámicas: SUM, COUNT, AVG, MIN, MAX.
   - Filtros WHERE configurables en tiempo real.
@@ -17,16 +19,17 @@ Tablers es un generador de tableros de control "self-service" inspirado en Zoho 
   - Layout responsive con CSS Grid.
   - Tooltips, leyendas y animaciones suaves con ECharts.
   - Botón de refresco global para actualizar datos sin recargar la página.
-- **Arquitectura Premium:**
-  - Backend en Node.js + TypeScript (limpio y tipado).
-  - Frontend en React + Tailwind CSS + Lucide Icons.
-  - Diseñado con estética Dark Mode premium (Slate/Primary palette).
 
 ## Stack Tecnológico
 
 - **Frontend:** React 18, Vite, Tailwind CSS, Apache ECharts, Axios, Lucide React.
-- **Backend:** Node.js, Express, TypeScript, Knex.js, Multer.
+- **Backend:** Node.js, Express, TypeScript, Knex.js (para ORM y migraciones), Multer.
 - **Base de Datos:** SQLite (local), PostgreSQL/MySQL (conectores).
+- **Configuración:** Variables de entorno para la gestión segura de credenciales y configuraciones.
+
+## Despliegue
+
+- **Integración Continua/Despliegue Continuo (CI/CD):** Configurado con GitHub Actions para automatizar pruebas y despliegues.
 
 ## Seguridad
 - **Prevención de Inyección SQL:** Consultas parametrizadas con Knex y validación exhaustiva de entradas (nombres de tablas, columnas, funciones de agregación, operadores de filtro) en el backend.

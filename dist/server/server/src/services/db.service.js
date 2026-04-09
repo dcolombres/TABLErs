@@ -1,16 +1,21 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const knex_1 = __importDefault(require("knex"));
-const path_1 = __importDefault(require("path"));
-const dbPath = path_1.default.resolve(__dirname, '../../data.sqlite');
-const db = (0, knex_1.default)({
-    client: 'sqlite3',
-    connection: {
-        filename: dbPath,
-    },
-    useNullAsDefault: true,
-});
-exports.default = db;
+import knex from 'knex';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.resolve(__dirname, '../../data.sqlite');
+let db;
+try {
+    db = knex({
+        client: 'sqlite3',
+        connection: {
+            filename: dbPath,
+        },
+        useNullAsDefault: true,
+    });
+}
+catch (error) {
+    console.error('Error initializing database connection:', error);
+    process.exit(1); // Exit the process if DB connection fails
+}
+export default db;

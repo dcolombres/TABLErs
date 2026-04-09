@@ -1,18 +1,34 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const data_routes_1 = __importDefault(require("./routes/data.routes")); // Import data routes
-const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3000;
-app.use(express_1.default.json());
-app.get('/', (req, res) => {
-    res.send('Tablers Backend is running!');
-});
-// Register data routes
-app.use('/api', data_routes_1.default);
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+import express from 'express';
+import cors from 'cors';
+import dataRoutes from './routes/data.routes.js';
+import { connectSource } from './controllers/upload.controller.js';
+import { dbReady } from './services/db.service.js';
+const app = express();
+const PORT = process.env.PORT || 3002;
+// Configure CORS
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Allow both localhost variants
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// Routes
+app.post('/api/connect', connectSource);
+app.use('/api', dataRoutes);
+async function startServer() {
+    await dbReady; // Ensure DB is initialized and seeded
+    const server = app.listen(Number(PORT), '127.0.0.1', () => {
+        console.log(`🚀 Server is running on port ${PORT} (127.0.0.1)`);
+    });
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error(`❌ Port ${PORT} is already in use.`);
+        }
+        else {
+            console.error(`❌ Server error:`, err);
+        }
+        process.exit(1);
+    });
+}
+startServer();

@@ -1,50 +1,74 @@
 {
-  "title": "Test 01",
+  "title": "Tablero Muestra",
   "charts": [
     {
-      "id": "1kuz7y11u",
+      "id": "221gbsyqr",
       "title": "Nueva Métrica",
       "type": "bar",
       "dataSource": {
-        "table": "imp_36ada4_categorias",
-        "xAxis": "nombre",
-        "yAxis": "id",
-        "aggregation": "COUNT"
-      },
-      "filters": []
-    },
-    {
-      "id": "h82fyhvbh",
-      "title": "Nueva Métrica",
-      "type": "pie",
-      "dataSource": {
-        "table": "imp_36ada4_productos",
-        "xAxis": "precio",
-        "yAxis": "nombre",
-        "aggregation": "COUNT"
-      },
-      "filters": []
-    },
-    {
-      "id": "n5ny9sxei",
-      "title": "Nueva Métrica",
-      "type": "bar",
-      "dataSource": {
-        "table": "imp_36ada4_ventas",
-        "xAxis": "cantidad",
-        "yAxis": "monto",
+        "table": "imp_e1c85d_csv",
+        "xAxis": "genero_cliente",
+        "yAxis": "satisfaccion",
         "aggregation": "SUM"
       },
       "filters": []
     },
     {
-      "id": "qxobiicsk",
+      "id": "ufxwjc2eu",
       "title": "Nueva Métrica",
       "type": "bar",
       "dataSource": {
-        "table": "imp_36ada4_ventas",
-        "xAxis": "fecha",
-        "yAxis": "producto_id",
+        "table": "imp_e1c85d_csv",
+        "xAxis": "edad_cliente",
+        "yAxis": "id",
+        "aggregation": "SUM"
+      },
+      "filters": []
+    },
+    {
+      "id": "li7f6m8m8",
+      "title": "Vista rápida de Imp 3efd9b csv",
+      "type": "table",
+      "dataSource": {
+        "table": "imp_3efd9b_csv",
+        "xAxis": "id",
+        "yAxis": "fecha",
+        "aggregation": "COUNT"
+      },
+      "filters": []
+    },
+    {
+      "id": "mopbpy819",
+      "title": "Vista rápida de Imp 3efd9b csv",
+      "type": "line",
+      "dataSource": {
+        "table": "imp_3efd9b_csv",
+        "xAxis": "producto",
+        "yAxis": "monto",
+        "aggregation": "COUNT"
+      },
+      "filters": []
+    },
+    {
+      "id": "4p24jdmwo",
+      "title": "Vista rápida de Imp 3efd9b csv",
+      "type": "pie",
+      "dataSource": {
+        "table": "imp_3efd9b_csv",
+        "xAxis": "genero_cliente",
+        "yAxis": "edad_cliente",
+        "aggregation": "COUNT"
+      },
+      "filters": []
+    },
+    {
+      "id": "5dro0vv1n",
+      "title": "Nueva Métrica",
+      "type": "pie",
+      "dataSource": {
+        "table": "imp_3efd9b_csv",
+        "xAxis": "region",
+        "yAxis": "edad_cliente",
         "aggregation": "SUM"
       },
       "filters": []

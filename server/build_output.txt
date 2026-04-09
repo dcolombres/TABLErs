@@ -1,0 +1,18 @@
+
+> tablers-backend@1.0.0 build
+> npm run clean && tsc
+
+
+> tablers-backend@1.0.0 clean
+> rm -rf dist
+
+src/services/logger.ts(1,50): error TS2307: Cannot find module 'winston' or its corresponding type declarations.
+src/services/logger.ts(7,22): error TS7031: Binding element 'timestamp' implicitly has an 'any' type.
+src/services/logger.ts(7,33): error TS7031: Binding element 'level' implicitly has an 'any' type.
+src/services/logger.ts(7,40): error TS7031: Binding element 'message' implicitly has an 'any' type.
+src/services/logger.ts(13,10): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/services/logger.ts(13,15): error TS7019: Rest parameter 'meta' implicitly has an 'any[]' type.
+src/services/logger.ts(14,11): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/services/logger.ts(14,16): error TS7019: Rest parameter 'meta' implicitly has an 'any[]' type.
+src/services/logger.ts(15,10): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/services/logger.ts(15,15): error TS7019: Rest parameter 'meta' implicitly has an 'any[]' type.

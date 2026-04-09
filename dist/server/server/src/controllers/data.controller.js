@@ -1,40 +1,41 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getData = exports.saveDashboardConfig = exports.getDashboardConfig = exports.queryData = exports.getSchema = exports.deleteTable = exports.getTables = void 0;
-const db_service_1 = __importDefault(require("../services/db.service"));
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const CONFIG_PATH = path_1.default.join(process.cwd(), 'dashboard_config.json');
+import db from '../services/db.service.js';
+import fs from 'fs';
+import path from 'path';
+import { getIntrospectedSchema, clearSchemaCache } from '../middleware/queryGuard.middleware.js'; // Import the schema introspector
+import knex from 'knex';
+const CONFIG_PATH = path.join(process.cwd(), 'dashboard_config.json');
 // ── GET /api/tables ──────────────────────────────────────────
-const getTables = async (_req, res) => {
+export const getTables = async (_req, res) => {
     try {
-        const query = await db_service_1.default.raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
-        // In knex sqlite, the result is directly an array of objects
-        res.json(query.map((row) => row.name));
+        const dataSources = await db('data_sources')
+            .select('id', 'name', 'table_name')
+            .whereNotIn('table_name', ['knex_migrations', 'knex_migrations_lock']); // Filter out internal tables
+        res.json(dataSources);
     }
     catch (err) {
         console.error('getTables error:', err);
-        res.status(500).json({ error: 'Error al obtener las tablas.' });
+        res.status(500).json({ error: 'Error al obtener las fuentes de datos.' });
     }
 };
-exports.getTables = getTables;
 // ── DELETE /api/table/:table ─────────────────────────────────
-const deleteTable = async (req, res) => {
+export const deleteTable = async (req, res) => {
     const { table } = req.params;
     try {
+        const schema = await getIntrospectedSchema();
         // Prevent dropping protected tables if any
-        if (table.startsWith('sqlite_')) {
-            return res.status(403).json({ error: 'Cannot drop system tables.' });
+        const protectedTables = ['knex_migrations', 'knex_migrations_lock', 'data_sources'];
+        if (table.startsWith('sqlite_') || protectedTables.includes(table)) {
+            return res.status(403).json({ error: 'Cannot drop system or protected tables.' });
         }
-        // Check if table exists
-        const exists = await db_service_1.default.schema.hasTable(table);
-        if (!exists) {
-            return res.status(404).json({ error: 'La tabla no existe.' });
+        // Validate table name against introspected schema
+        if (!schema[table]) {
+            return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
         }
-        await db_service_1.default.schema.dropTable(table);
+        // Use Knex's schema builder for dropping tables, which is safer
+        // Ensure the table name is properly escaped by Knex
+        await db.schema.dropTableIfExists(table); // Use dropTableIfExists for idempotency
+        // Clear the cached schema so it's re-introspected next time
+        clearSchemaCache();
         res.json({ message: `Fuente de datos '${table}' eliminada correctamente.` });
     }
     catch (err) {
@@ -42,15 +43,48 @@ const deleteTable = async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar la fuente de datos.' });
     }
 };
-exports.deleteTable = deleteTable;
 // ── GET /api/schema/:table ───────────────────────────────────
-const getSchema = async (req, res) => {
+export const getSchema = async (req, res) => {
     const { table } = req.params;
     try {
-        const info = await db_service_1.default.raw(`PRAGMA table_info("${table}")`);
-        const schema = {};
-        for (const col of info) {
-            schema[col.name] = col.type;
+        const dataSource = await db('data_sources').where({ table_name: table }).first();
+        const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
+        let schema = {};
+        if (isExternal) {
+            const conn = JSON.parse(dataSource.connection_details);
+            const externalDb = knex({
+                client: conn.type === 'mysql' ? 'mysql2' : (conn.type === 'pg' ? 'pg' : 'sqlite3'),
+                connection: conn.type === 'sqlite' ? { filename: conn.database } : {
+                    host: conn.host,
+                    port: conn.port,
+                    user: conn.user,
+                    password: conn.password,
+                    database: conn.database,
+                },
+                useNullAsDefault: conn.type === 'sqlite',
+            });
+            try {
+                // A minimal approach for MVP: query 1 row and infer columns, or use columnInfo()
+                const columnsInfo = await externalDb(table).columnInfo();
+                for (const colName in columnsInfo) {
+                    schema[colName] = columnsInfo[colName].type;
+                }
+            }
+            finally {
+                await externalDb.destroy();
+            }
+        }
+        else {
+            const introspectedSchema = await getIntrospectedSchema();
+            // Validate table name against introspected schema
+            if (!introspectedSchema[table]) {
+                return res.status(404).json({ error: 'La tabla no existe o no está permitida.' });
+            }
+            // Retrieve schema directly from introspected data
+            const info = introspectedSchema[table];
+            for (const col of info) {
+                schema[col.name] = col.type;
+            }
         }
         res.json(schema);
     }
@@ -59,28 +93,66 @@ const getSchema = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener el esquema.' });
     }
 };
-exports.getSchema = getSchema;
 // ── POST /api/query ──────────────────────────────────────────
 // Body: { table, columns, aggregations, groupBy, filters }
-const queryData = async (req, res) => {
+export const queryData = async (req, res) => {
     const { table, columns, aggregations, groupBy, filters } = req.body;
-    if (!table)
+    if (!table) {
         return res.status(400).json({ error: 'Se requiere el nombre de la tabla.' });
+    }
     try {
-        let query = (0, db_service_1.default)(table);
+        const dataSource = await db('data_sources').where({ table_name: table }).first();
+        const isExternal = dataSource && ['mysql', 'pg', 'sqlite'].includes(dataSource.type);
+        let queryDb = db;
+        let externalDb = null;
+        let actualTableName = table;
+        if (isExternal) {
+            const conn = JSON.parse(dataSource.connection_details);
+            externalDb = knex({
+                client: conn.type === 'mysql' ? 'mysql2' : (conn.type === 'pg' ? 'pg' : 'sqlite3'),
+                connection: conn.type === 'sqlite' ? { filename: conn.database } : {
+                    host: conn.host,
+                    port: conn.port,
+                    user: conn.user,
+                    password: conn.password,
+                    database: conn.database,
+                },
+                useNullAsDefault: conn.type === 'sqlite',
+            });
+            queryDb = externalDb;
+            // actualTableName = dataSource.name; // MVP approach: source name = table name
+        }
+        const schema = await getIntrospectedSchema();
+        let allowedColumns = [];
+        if (!isExternal) {
+            if (!schema[table]) {
+                return res.status(400).json({ error: `Table '${table}' does not exist or is not allowed.` });
+            }
+            allowedColumns = schema[table].map(col => col.name);
+        }
+        let query = queryDb(actualTableName); // Knex will escape the table name
         // Build SELECT clause
         const selectCols = [];
         if (columns?.length) {
-            for (const col of columns)
+            for (const col of columns) { // Validate columns
+                if (!isExternal && !allowedColumns.includes(col)) {
+                    return res.status(400).json({ error: `Columna '${col}' no permitida.` });
+                }
                 selectCols.push(col);
+            }
         }
         if (aggregations?.length) {
             for (const agg of aggregations) {
-                const { column, func, alias } = agg;
+                const { column, func, alias } = agg; // func is now validated
                 const validFuncs = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX'];
-                if (!validFuncs.includes(func?.toUpperCase()))
-                    continue;
-                selectCols.push(db_service_1.default.raw(`${func.toUpperCase()}("${column}") as "${alias || column}"`));
+                if (!isExternal && (!column || !allowedColumns.includes(column))) { // Validate column for aggregation
+                    return res.status(400).json({ error: `Columna '${column}' no permitida para agregación.` });
+                }
+                // Whitelist aggregation function
+                if (!validFuncs.includes(func?.toUpperCase())) {
+                    return res.status(400).json({ error: `Función de agregación '${func}' no válida.` });
+                }
+                selectCols.push(queryDb.raw(`${func.toUpperCase()}("${column}") as "${alias || column}"`));
             }
         }
         if (selectCols.length) {
@@ -91,15 +163,25 @@ const queryData = async (req, res) => {
         }
         // GROUP BY
         if (groupBy?.length) {
+            for (const col of groupBy) { // Validate group by columns
+                if (!isExternal && !allowedColumns.includes(col)) {
+                    return res.status(400).json({ error: `Columna '${col}' no permitida para GROUP BY.` });
+                }
+            }
             query = query.groupBy(groupBy);
         }
         // Filters (WHERE)
         if (filters?.length) {
             for (const f of filters) {
-                const { column: col, operator, value } = f;
-                if (!col || !operator)
-                    continue;
-                if (operator === 'LIKE') {
+                const { column: col, operator, value } = f; // operator is now validated
+                const validOperators = ['=', '>', '<', 'LIKE', '!=', '>=', '<=']; // Whitelist operators
+                if (!isExternal && (!col || !allowedColumns.includes(col))) { // Validate column for filter
+                    return res.status(400).json({ error: `Columna '${col}' no permitida para filtro.` });
+                }
+                if (!operator || !validOperators.includes(operator.toUpperCase())) {
+                    return res.status(400).json({ error: `Operador '${operator}' no válido para filtro.` });
+                }
+                if (operator.toUpperCase() === 'LIKE') {
                     query = query.where(col, 'like', `%${value}%`);
                 }
                 else {
@@ -109,22 +191,28 @@ const queryData = async (req, res) => {
         }
         // Cap results for safety
         query = query.limit(1000);
-        const result = await query;
-        res.json(result);
+        try {
+            const result = await query;
+            res.json(result);
+        }
+        finally {
+            if (externalDb) {
+                await externalDb.destroy();
+            }
+        }
     }
     catch (err) {
         console.error('queryData error:', err);
         res.status(500).json({ error: `Error en la consulta: ${err.message}` });
     }
 };
-exports.queryData = queryData;
 // ── GET /api/dashboard/default ───────────────────────────────
-const getDashboardConfig = async (_req, res) => {
+export const getDashboardConfig = async (_req, res) => {
     try {
-        if (!fs_1.default.existsSync(CONFIG_PATH)) {
+        if (!fs.existsSync(CONFIG_PATH)) {
             return res.status(404).json({ error: 'No hay configuración guardada.' });
         }
-        const content = await fs_1.default.promises.readFile(CONFIG_PATH, 'utf-8');
+        const content = await fs.promises.readFile(CONFIG_PATH, 'utf-8');
         res.json(JSON.parse(content));
     }
     catch (err) {
@@ -132,11 +220,18 @@ const getDashboardConfig = async (_req, res) => {
         res.status(500).json({ error: 'Error al leer la configuración.' });
     }
 };
-exports.getDashboardConfig = getDashboardConfig;
 // ── POST /api/dashboard/save ─────────────────────────────────
-const saveDashboardConfig = async (req, res) => {
+export const saveDashboardConfig = async (req, res) => {
     try {
-        await fs_1.default.promises.writeFile(CONFIG_PATH, JSON.stringify(req.body, null, 2), 'utf-8');
+        // Basic validation for dashboard config structure
+        const { title, charts } = req.body;
+        if (typeof title !== 'string' || !Array.isArray(charts)) {
+            return res.status(400).json({ error: 'Estructura de configuración de dashboard inválida.' });
+        }
+        // Further validation for each chart in 'charts' array could be added here
+        // For now, we'll just ensure it's a valid JSON structure
+        // Sanitize req.body to only include expected fields if necessary
+        await fs.promises.writeFile(CONFIG_PATH, JSON.stringify({ title, charts }, null, 2), 'utf-8');
         res.json({ message: 'Configuración guardada.' });
     }
     catch (err) {
@@ -144,19 +239,34 @@ const saveDashboardConfig = async (req, res) => {
         res.status(500).json({ error: 'Error al guardar la configuración.' });
     }
 };
-exports.saveDashboardConfig = saveDashboardConfig;
 // ── POST /api/data (legacy) ──────────────────────────────────
-const getData = async (req, res) => {
+export const getData = async (req, res) => {
     const { tableName, columns, where } = req.body;
     try {
-        let query = (0, db_service_1.default)(tableName);
+        const schema = await getIntrospectedSchema();
+        // Validate table name
+        if (!schema[tableName]) {
+            return res.status(400).json({ error: `Table '${tableName}' does not exist or is not allowed.` });
+        }
+        const allowedColumns = schema[tableName].map(col => col.name);
+        let query = db(tableName); // Knex will escape the table name
         if (columns?.length) {
+            for (const col of columns) { // Validate columns
+                if (!allowedColumns.includes(col)) {
+                    return res.status(400).json({ error: `Columna '${col}' no permitida.` });
+                }
+            }
             query = query.select(columns);
         }
         else {
             query = query.select('*');
         }
         if (where && Object.keys(where).length) {
+            for (const key in where) { // Validate columns in WHERE clause
+                if (!allowedColumns.includes(key)) {
+                    return res.status(400).json({ error: `Columna '${key}' en WHERE clause no permitida.` });
+                }
+            }
             query = query.where(where);
         }
         res.json(await query);
@@ -166,4 +276,3 @@ const getData = async (req, res) => {
         res.status(500).json({ error: 'Error al obtener datos.' });
     }
 };
-exports.getData = getData;
