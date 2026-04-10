@@ -1,3 +1,6 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
 export default defineConfig(({ mode }) => ({
   // Only use the nested base path if we are in production (GitHub Pages)
   base: mode === 'production' ? '/Tablers/' : '/',
